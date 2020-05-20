@@ -1,12 +1,12 @@
-import random, json
-import numpy as np
-
-from queue import Queue
+import json
+import random
 from itertools import permutations
-from tqdm import tqdm
+from queue import Queue
 
-import networkx as nx
 import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+from tqdm import tqdm
 
 # Considering these are our models
 #
@@ -107,10 +107,12 @@ class Edge:
         return float(distance)
 
     def __str__(self):
-        temp = "Node 1 ID: " + str(self.start.id) + \
-               ", Node 2 ID: " + str(self.finish.id)
-        temp = temp + "\nFeatures Distance: " + str(self.features_distance) + \
-               ", Similarity Distance: " + str(self.prob_of_activation)
+        temp = "Node 1 ID: " + str(self.start.id)
+        + ", Node 2 ID: " + str(self.finish.id)
+        temp = temp
+        + "\nFeatures Distance: "
+        + str(self.features_distance)
+        + ", Similarity Distance: " + str(self.prob_of_activation)
         return temp + "\n"
 
 
@@ -158,7 +160,7 @@ class Graph:
     def get_activated_nodes(self, seeds, live_edges):
         activated_nodes = [x for x in seeds]
         changes = 1
-        while changes is not 0:
+        while changes != 0:
             changes = 0
             for edge in live_edges:
                 if edge.start in activated_nodes and edge.finish not in activated_nodes:
@@ -213,7 +215,7 @@ class Graph:
 
         plt.show()
 
-    ## Function transforming the Graph class into a JSON serializable
+    # Function transforming the Graph class into a JSON serializable
     def turn_self_dict(self):
         for i in range(self.nodes_number):
             self.nodes[i] = self.nodes[i].__dict__
@@ -226,7 +228,7 @@ class Graph:
         self.adjacent_matrix = {i: self.adjacent_matrix[i] for i in range(len(self.adjacent_matrix))}
         return self.__dict__
 
-    ## Function used to generate a graph from JSON file
+    # Function used to generate a graph from JSON file
     def load_from_json(self, jsonfile):
         # recovering list of nodes from json
         for item in jsonfile.get('nodes').items():

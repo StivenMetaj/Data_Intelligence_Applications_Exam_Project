@@ -1,6 +1,7 @@
-import SocialNetwork as sn
 import random
+
 import numpy as np
+import SocialNetwork as sn
 
 networks = {}
 seed = 0
@@ -24,5 +25,3 @@ for id in range(1, 4):
     montecarlo_results.append(networks[id].monte_carlo_maximization(iterations))
 
 print("ciao")
-
-
