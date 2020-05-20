@@ -45,12 +45,10 @@ class Graph(object):
         self.nodes = [Node(id) for id in range(self.n_nodes)]
 
         for i in range(self.n_nodes):
-            for j in range(i + 1, self.n_nodes):
+            for j in range(self.n_nodes):
                 if np.random.rand() <= self.connectivity:
                     self.nodes[i].add_neighborg(self.nodes[j])
-                    self.nodes[j].add_neighborg(self.nodes[i])
                     self.adj_matrix[i][j] = np.random.rand()
-                    self.adj_matrix[j][i] = np.random.rand()
 
     def get_nodes(self):
         return self.nodes
@@ -58,22 +56,15 @@ class Graph(object):
     def monte_carlo_sampling(self, seeds, max_repetition):
 
         nodes_activ_prob = np.zeros(self.n_nodes, dtype=np.float)
-
-        for seed in seeds:
-            seed.is_active()
-
         for _ in range(max_repetition):
             for node in self.nodes:
-                node.set_inactive()
-            live_edges = self.adj_matrix > np.random.rand(self.n_nodes, self.n_nodes)
-            new_activated = []
+                if node in seeds:
+                    node.set_active()
+                else:
+                    node.set_inactive()
 
-            for seed in seeds:
-                for neighborg in seed.get_neighborgs():
-                    if live_edges[seed.get_id()][neighborg.get_id()] and not neighborg.is_active():
-                        neighborg.set_active()
-                        nodes_activ_prob[neighborg.get_id()] += 1
-                        new_activated.append(neighborg)
+            live_edges = self.adj_matrix > np.random.rand(self.n_nodes, self.n_nodes)
+            new_activated = seeds
 
             while len(new_activated) > 0:
                 activated = new_activated
@@ -86,5 +77,4 @@ class Graph(object):
                             new_activated.append(neighborg)
 
         nodes_activ_prob = nodes_activ_prob / max_repetition
-        # dubbio : vanno considerati anche i nodi non attivati?
         return nodes_activ_prob
