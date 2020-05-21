@@ -1,13 +1,13 @@
 import numpy as np
-from network_serna import Graph
-from tqdm import tqdm
 from matplotlib.pylab import plt
+from network import Graph
+from tqdm import tqdm
 
 
 def greedy_algorithm(graph, budget, k, verbose=True):
     seeds = []
     spreads = []
-    nodes = graph.nodes
+    nodes = graph.nodes.copy()
     print("\n----------------------Starting greedy algorithm with:\nBudget: " + str(budget) + ", k: " + str(k))
     for _ in range(budget):
         if verbose:
@@ -44,14 +44,17 @@ def greedy_algorithm(graph, budget, k, verbose=True):
     return seeds, spreads
 
 
-my_graph = Graph(100, 0.1)
+my_graph = Graph(200, 0.05)
 max_experiment = 10
 plotDict = {}
-
-for _ in range(1, max_experiment):
-    k = 10 * _
+k = 2
+scale_factor = 0.72
+for _ in range(0, max_experiment):
+    k = k + int(k * scale_factor)
     seeds, spreads = greedy_algorithm(my_graph, 3, k, verbose=False)
+    print(spreads)
     plotDict[k] = spreads[-1]
+
 
 lists = sorted(plotDict.items())
 x, y = zip(*lists)

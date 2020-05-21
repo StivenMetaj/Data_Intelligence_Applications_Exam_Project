@@ -1,6 +1,6 @@
 import numpy as np
 
-np.random.seed(1234)
+np.random.seed(12345)
 
 
 class Node(object):
@@ -32,7 +32,7 @@ class Graph(object):
             for j in range(self.n_nodes):
                 if np.random.rand() <= self.connectivity and i != j:
                     self.nodes[i].add_neighborg(self.nodes[j])
-                    self.adj_matrix[i][j] = np.random.rand()
+                    self.adj_matrix[i][j] = np.random.uniform(0, 0.1)
 
     def monte_carlo_sampling(self, seeds, max_repetition, verbose):
         if verbose:
