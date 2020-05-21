@@ -1,5 +1,8 @@
 import numpy as np
 
+np.random.seed(1234)
+
+
 
 class Node(object):
     def __init__(self, id):
@@ -12,69 +15,53 @@ class Node(object):
         self.neighbors.append(node)
         self.degree += 1
 
-    def get_id(self):
-        return self.id
-
-    def get_neighborgs(self):
-        return self.neighbors
-
-    def is_active(self):
-        return self.activated
-
-    def set_inactive(self):
-        self.activated = False
-
-    def set_active(self):
-        self.activated = True
-
-    def get_degree(self):
-        return self.degree
-
     def __str__(self):
-        temp = "ID: " + str(self.id)
-        return temp + "\n"
-
+        return f"Node with ID: {self.id}"
 
 class Graph(object):
     def __init__(self, n_nodes, connectivity):
 
         self.n_nodes = n_nodes
         self.connectivity = connectivity
-
         self.adj_matrix = np.zeros([n_nodes, n_nodes], dtype=np.float)
         self.nodes = [Node(id) for id in range(self.n_nodes)]
 
+        # Doubt in avoiding self connections
         for i in range(self.n_nodes):
             for j in range(self.n_nodes):
-                if np.random.rand() <= self.connectivity:
+                if np.random.rand() <= self.connectivity and i != j:
                     self.nodes[i].add_neighborg(self.nodes[j])
                     self.adj_matrix[i][j] = np.random.rand()
 
-    def get_nodes(self):
-        return self.nodes
-
     def monte_carlo_sampling(self, seeds, max_repetition):
+
+        print("######################################")
+        print("I'm receiving the following seeds for this MC sampling")
+        for seed in seeds:
+            print(seed)
 
         nodes_activ_prob = np.zeros(self.n_nodes, dtype=np.float)
         for _ in range(max_repetition):
             for node in self.nodes:
                 if node in seeds:
-                    node.set_active()
+                    node.activated = True
                 else:
-                    node.set_inactive()
+                    node.activated = False
 
             live_edges = self.adj_matrix > np.random.rand(self.n_nodes, self.n_nodes)
             new_activated = seeds
 
-            while len(new_activated) > 0:
+            while new_activated:
                 activated = new_activated
                 new_activated = []
                 for active in activated:
-                    for neighborg in active.get_neighborgs():
-                        if live_edges[active.get_id()][neighborg.get_id()] and not neighborg.is_active():
-                            nodes_activ_prob[neighborg.get_id()] += 1
-                            neighborg.set_active()
+                    for neighborg in active.neighbors:
+                        if live_edges[active.id][neighborg.id] and not neighborg.activated:
+                            nodes_activ_prob[neighborg.id] += 1
+                            neighborg.activated = True
                             new_activated.append(neighborg)
 
         nodes_activ_prob = nodes_activ_prob / max_repetition
-        return nodes_activ_prob
+
+        print(f"Marginal increase of this soltution: {np.mean(nodes_activ_prob)}")
+        return np.mean(nodes_activ_prob)
