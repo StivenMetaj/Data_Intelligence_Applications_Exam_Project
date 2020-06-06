@@ -20,7 +20,7 @@ class Node(object):
     def add_neighborg(self, node):
         self.neighbors.append(node)
         self.degree += 1
-    
+
     def create_features(self):
         gender = (lambda x: "M" if x < 0.5 else "F")(np.random.uniform(0,1))
         age = np.random.randint(5)
@@ -34,11 +34,15 @@ class Node(object):
 
 
 class Graph(object):
+    id = 1       # graph id
+
     def __init__(self, n_nodes, connectivity):
         self.n_nodes = n_nodes
         self.connectivity = connectivity
         self.adj_matrix = np.zeros([n_nodes, n_nodes], dtype=np.float)
         self.nodes = [Node(id) for id in range(self.n_nodes)]
+        self.id = Graph.id
+        Graph.id += 1
 
         # Doubt in avoiding self connections
         # Stiv: avoiding self connections mi gusta, ma dagli esempi sulle slide se i->j anche j->i... al massimo
@@ -61,7 +65,7 @@ class Graph(object):
         interests_influence = np.dot(n1.features.interests, n2.features.interests)/6
         total_influence = authority*(gender_influence + age_influence + interests_influence)
         return total_influence
-    
+
     def monte_carlo_sampling(self, seeds, max_repetition, verbose):
         if verbose:
             print("######################################")
