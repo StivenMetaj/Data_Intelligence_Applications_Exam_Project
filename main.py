@@ -1,7 +1,9 @@
 import numpy as np
 from matplotlib.pylab import plt
 from network import Graph
+from network import Node
 from tqdm import tqdm
+import copy
 
 
 def greedy_algorithm(graph, budget, k, verbose=False):
@@ -145,8 +147,39 @@ def point3(graphs, budget, k, num_experiment):
     # cumulative approximation error of the graphs
     cumulative_approximation_error(graphs, budget, num_experiment)
 
+def point4(graph: Graph, budget, ripetitions, stimulations):
+    # We have to make a copy of the graph before changing the probabilities
+    # In this way we can plot the differences between the original graph and the estimated one
+    true_graph = copy.deepcopy(graph)
 
-graph1 = Graph(300, 0.1)
+    # The initial seeds will be the most "famous" nodes of the graph
+    seeds = [x for x in graph.nodes]
+    seeds.sort(key=lambda x: x.degree)
+    seeds = seeds[:budget]
+
+    # I have to initialize the beta distribution parameters to [1,1]
+    graph.init_estimates()
+    # I have to change the initial probabilities setting them in an uniform way
+    graph.initializeUniformWeights()
+
+    print(graph.adj_matrix)
+    print()
+    print(true_graph.adj_matrix)
+
+    for ripetition in tqdm(range(ripetitions)):
+        for stimulation in range(stimulations):
+            realization_per_node = graph.simulate_episode(seeds)[0]
+            for record in realization_per_node:
+                graph.update_estimations(record[0], record[1])
+        graph.update_weights()
+
+    print()
+    print(graph.adj_matrix)
+
+
+
+
+graph1 = Graph(10, 0.1)
 graph2 = Graph(250, 0.08)
 graph3 = Graph(350, 0.07)
 graphs = [graph1, graph2, graph3]
@@ -155,5 +188,7 @@ budget = 3
 k = 10             # number of montecarlo iterations
 num_experiment = 10
 
-point2(graphs, budget, k, num_experiment)
-point3(graphs, budget, k, num_experiment)
+#point2(graphs, budget, k, num_experiment)
+#point3(graphs, budget, k, num_experiment)
+
+point4(graph1, budget, 1000, 1000)

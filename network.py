@@ -16,6 +16,7 @@ class Node(object):
         self.neighbors = []
         self.degree = 0
         self.features = self.create_features()
+        self.estimate_parameters = []
 
     def add_neighborg(self, node):
         self.neighbors.append(node)
@@ -52,6 +53,18 @@ class Graph(object):
                 if np.random.rand() <= self.connectivity and i != j:
                     self.nodes[i].add_neighborg(self.nodes[j])
                     self.adj_matrix[i][j] = np.random.uniform(0, 0.1)
+
+    def init_estimates(self):
+        for i in self.nodes:
+            for j in range(i.degree):
+                i.estimate_parameters = [[1, 1] for _ in range(i.degree)]
+
+    def initializeUniformWeights(self):
+        for i in range(self.n_nodes):
+            for j in range(self.n_nodes):
+                if self.adj_matrix[i][j] != 0:
+                    self.adj_matrix[i][j] = 1 / len(self.nodes[i].neighbors)
+
 
     # Evaluate influence of n1 over n2
     def evaluate_influence(self, n1, n2):
@@ -99,3 +112,62 @@ class Graph(object):
         if verbose:
             print(f"Marginal increase of this soltution: {np.mean(nodes_activ_prob)}")
         return np.mean(nodes_activ_prob)
+
+    # In output we have a list where each element has 2 sub-elements:
+    # the first is the id of the activated node (the first k elements of the list will be the initial seeds!),
+    # the second is a list of -1, 0, 1 , having length equal to the degree of the node ->
+    #  0: the neighbor was unactive but the binomial gave us 0
+    #  1: the neighbor was unactive and the binomial gave us 1
+    # -1: the neighbor was already active!
+    # WE WILL USE THIS LIST TO UPDATE THE BETA PARAMETERS FOR EACH EDGE
+    def simulate_episode(self, seeds):
+        realizations_per_node = []
+
+        # I want the ids of the seeds
+        seeds = [seed.id for seed in seeds]
+
+        for i in seeds:
+            self.nodes[i].activated = True
+
+        for i in seeds:
+            realizations = []
+            for j in range(len(self.nodes)):
+                if self.adj_matrix[i][j] != 0:
+                    if not self.nodes[j].activated:
+                        realization = np.random.binomial(1, self.adj_matrix[i][j])
+                        if realization == 1:
+                            seeds.append(j)
+                            self.nodes[j].activated = True
+                        realizations.append(realization)
+                    else:
+                        realizations.append(-1)
+
+            realizations_per_node.append([i, realizations])
+
+        nodes_activated = len(seeds)
+
+        for id in seeds:
+            self.nodes[id].activated = False
+
+        return realizations_per_node, nodes_activated
+
+    # Given the id of the node and its realizations of binomial random variables
+    # we update the beta parameters of each edge of that node
+    def update_estimations(self, id, realizations):
+        temp = self.nodes[id].estimate_parameters
+        for i in range(len(realizations)):
+            if realizations[i] != -1:
+                temp[i][0] += realizations[i]
+                temp[i][1] += 1 - realizations[i]
+
+    # We change the probabilities of our adj matrix following the estimated beta parameters!
+    def update_weights(self):
+        for i in self.nodes:
+            id1 = i.id
+            neighbor_id = 0
+            for j in self.nodes:
+                id2 = j.id
+                if self.adj_matrix[id1][id2] != 0:
+                    self.adj_matrix[id1][id2] = np.random.beta(a=i.estimate_parameters[neighbor_id][0],
+                                                               b=i.estimate_parameters[neighbor_id][1])
+                    neighbor_id += 1
