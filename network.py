@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 #np.random.seed(12345)
 
@@ -65,7 +66,6 @@ class Graph(object):
                 if self.adj_matrix[i][j] != 0:
                     self.adj_matrix[i][j] = 1 / len(self.nodes[i].neighbors)
 
-
     # Evaluate influence of n1 over n2
     def evaluate_influence(self, n1, n2):
         authority = n1.degree/self.n_nodes
@@ -78,6 +78,22 @@ class Graph(object):
         interests_influence = np.dot(n1.features.interests, n2.features.interests)/6
         total_influence = authority*(gender_influence + age_influence + interests_influence)
         return total_influence
+
+    def social_influence(self, seeds):
+        active = []
+        new_activated = seeds
+
+        while new_activated:
+            activated = new_activated
+            new_activated = []
+            for a in activated:
+                neighbors = a.neighbors
+                for n in neighbors:
+                    if n not in active and random.uniform(0, 1) < self.adj_matrix[a.id][n.id]:
+                        new_activated.append(n)
+                        active.append(n)
+
+        return active
 
     def monte_carlo_sampling(self, seeds, max_repetition, verbose):
         if verbose:
@@ -171,3 +187,10 @@ class Graph(object):
                     self.adj_matrix[id1][id2] = np.random.beta(a=i.estimate_parameters[neighbor_id][0],
                                                                b=i.estimate_parameters[neighbor_id][1])
                     neighbor_id += 1
+
+    def random_seeds(self, n=1):
+        seeds = []
+        for _ in range(n):
+            seeds.append(random.choice(list(set(self.nodes)-set(seeds))))
+
+        return seeds
