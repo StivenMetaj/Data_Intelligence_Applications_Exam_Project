@@ -15,7 +15,6 @@ class Learner():
 
 
 class TS_Learner(Learner):
-
     def __init__(self, n_arms, arms):
         super().__init__(n_arms=n_arms, arms=arms)
         self.beta_param = np.ones((n_arms, 2))
@@ -25,7 +24,6 @@ class TS_Learner(Learner):
         return idx
 
     def update(self, pulled_arm, reward):
-
         self.update_observation(pulled_arm, reward)
         self.beta_param[pulled_arm, 0] = self.beta_param[pulled_arm, 0] + reward
         self.beta_param[pulled_arm, 1] = self.beta_param[pulled_arm, 1] + 1.0 - reward
@@ -33,9 +31,7 @@ class TS_Learner(Learner):
 
 
 class Environment():
-
     def __init__(self, n_arms, probabilities):
-
         self.n_arms = n_arms
         self.probabilities = probabilities
 
@@ -46,15 +42,12 @@ class Environment():
 
 
 class Non_Stationary_Environment(Environment):
-
     def __init__(self, n_arms, probabilities, horizon):
-
         super().__init__(n_arms, probabilities)
         self.t = 0
         self.horizon = horizon
 
     def round(self, pulled_arm):
-
         n_phases = len(self.probabilities)
         phase_size = self.horizon / n_phases
         current_phase = int(self.t / phase_size)
