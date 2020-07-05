@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 
 np.random.seed(12345)
@@ -68,6 +70,18 @@ class Graph(object):
                     self.nodes[i].add_neighborg(self.nodes[j])
                     self.adj_matrix[i][j] = np.random.uniform(0, 0.1)
 
+    # TODO questo metodo serve?
+    def init_estimates(self):
+        for i in self.nodes:
+            for j in range(i.degree):
+                i.estimate_parameters = [[1, 1] for _ in range(i.degree)]
+    # TODO questo metodo serve?
+    def initializeUniformWeights(self):
+        for i in range(self.n_nodes):
+            for j in range(self.n_nodes):
+                if self.adj_matrix[i][j] != 0:
+                    self.adj_matrix[i][j] = 1 / len(self.nodes[i].neighbors)
+
     # Evaluate influence of n1 over n2
     def evaluate_influence(self, n1, n2):
         authority = n1.degree / self.n_nodes
@@ -81,6 +95,22 @@ class Graph(object):
         interests_influence = np.dot(n1.features.interests, n2.features.interests) / 6
         total_influence = authority * (gender_influence + age_influence + interests_influence)
         return total_influence
+
+    def social_influence(self, seeds):
+        active = []
+        new_activated = seeds
+
+        while new_activated:
+            activated = new_activated
+            new_activated = []
+            for a in activated:
+                neighbors = a.neighbors
+                for n in neighbors:
+                    if n not in active and random.uniform(0, 1) < self.adj_matrix[a.id][n.id]:
+                        new_activated.append(n)
+                        active.append(n)
+
+        return active
 
     def monte_carlo_sampling(self, seeds, max_repetition, verbose):
         if verbose:
@@ -149,4 +179,34 @@ class Graph(object):
                         new_activated.append(neighborg)
                     else:
                         self.beta_parameters_matrix[active.id][neighborg.id].b += 1
+        # TODO questo for serve?
+        for id in seeds:
+            self.nodes[id].activated = False
 
+    # Given the id of the node and its realizations of binomial random variables
+    # we update the beta parameters of each edge of that node
+    def update_estimations(self, id, realizations):
+        temp = self.nodes[id].estimate_parameters
+        for i in range(len(realizations)):
+            if realizations[i] != -1:
+                temp[i][0] += realizations[i]
+                temp[i][1] += 1 - realizations[i]
+
+    # We change the probabilities of our adj matrix following the estimated beta parameters!
+    def update_weights(self):
+        for i in self.nodes:
+            id1 = i.id
+            neighbor_id = 0
+            for j in self.nodes:
+                id2 = j.id
+                if self.adj_matrix[id1][id2] != 0:
+                    self.adj_matrix[id1][id2] = np.random.beta(a=i.estimate_parameters[neighbor_id][0],
+                                                               b=i.estimate_parameters[neighbor_id][1])
+                    neighbor_id += 1
+
+    def random_seeds(self, n=1):
+        seeds = []
+        for _ in range(n):
+            seeds.append(random.choice(list(set(self.nodes)-set(seeds))))
+
+        return seeds
