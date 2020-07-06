@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 
-np.random.seed(123456789)
+np.random.seed(1234)
 
 
 class Features:
@@ -186,9 +186,9 @@ class Graph(object):
     #                                                            b=i.estimate_parameters[neighbor_id][1])
     #                 neighbor_id += 1
     #
-    # def random_seeds(self, n=1):
-    #     seeds = []
-    #     for _ in range(n):
-    #         seeds.append(random.choice(list(set(self.nodes) - set(seeds))))
-    #
-    #     return seeds
+    def random_seeds(self, n=1):
+        seeds = []
+        for _ in range(n):
+            seeds.append(random.choice(list(set(self.nodes) - set(seeds))))
+    
+        return seeds
