@@ -12,21 +12,20 @@ from scipy.stats import beta
 from tqdm import tqdm
 
 
+# The function returns the best possible seeds set given a certain graph
 def greedy_algorithm(graph, budget, k, verbose=False):
     seeds = []
     spreads = []
+    best_node = None
     nodes = graph.nodes.copy()
-    #print("Budget: " + str(budget) + ", k: " + str(k))
-    for _ in range(budget):
-        if verbose:
-            print("\n////////////////////////////////////////////////")
-            print("\nInteraction cycle number " + str(_))
 
+    # In a cumulative way I compute the montecarlo sampling for each possibile new seed to see which one will be added
+    for _ in range(budget):
         best_spread = 0
 
         # For all the nodes which are not seed
         for node in nodes:
-            spread = graph.monte_carlo_sampling(seeds + [node], k, verbose)
+            spread = graph.monte_carlo_sampling(seeds + [node], k)
 
             if spread > best_spread:
                 best_spread = spread
@@ -35,39 +34,30 @@ def greedy_algorithm(graph, budget, k, verbose=False):
         spreads.append(best_spread)
         seeds.append(best_node)
 
-        if verbose:
-            print("-----------------------------------------------")
-            print("The nodes are: ")
-            for node in nodes:
-                print(node)
-            print(f"\nThe best node was: {best_node}, with spread equal to {best_spread}")
-            print("-----------------------------------------------")
-
         # I remove it from nodes in order to not evaluate it again in the future
         if nodes:
             nodes.remove(best_node)
 
-        if verbose:
-            print("\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\n")
     return seeds, spreads[-1]
 
 
-def cumulative_greedy_algorithm(graphs, budget, k, verbose=False):
+# As before but we have multiple graphs and we decide the best seeds for each graph (they are correlated!)
+def cumulative_greedy_algorithm(graphs, budget, k):
     seeds = {g: [] for g in graphs}
     spreads = {g: 0 for g in graphs}
-    print("Budget: " + str(budget) + ", k: " + str(k))
-    for _ in range(budget):
-        if verbose:
-            print("\n////////////////////////////////////////////////")
-            print("\nInteraction cycle number " + str(_))
+    graph_best_node = None
+    best_node = None
 
+    for _ in range(budget):
         best_spread = 0
 
         # For all the nodes which are not seed
         for graph in graphs:
+            # I want all the nodes that are not seeds!
             nodes = list(set(graph.nodes.copy()) - set(seeds[graph]))
-            for node in tqdm(nodes):
-                spread = graph.monte_carlo_sampling(seeds[graph] + [node], k, verbose)
+
+            for node in nodes:
+                spread = graph.monte_carlo_sampling(seeds[graph] + [node], k)
 
                 spread -= spreads[graph]  # compute marginal increase
                 if spread > best_spread:
@@ -78,108 +68,80 @@ def cumulative_greedy_algorithm(graphs, budget, k, verbose=False):
         spreads[graph_best_node] = best_spread
         seeds[graph_best_node].append(best_node)
 
-        if verbose:
-            print("-----------------------------------------------")
-            print(f"\nThe best node was: {best_node} in graph: {graph_best_node}, with spread equal to {best_spread}")
-            print("-----------------------------------------------")
-
-        if verbose:
-            print("\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\n")
-
     return seeds, spreads
 
 
-def approximation_error(graph, budget, num_experiment):
-    plotDict = {}
-    k = 2
-    scale_factor = 0.72
-    for _ in range(0, num_experiment):
-        seeds, spread = greedy_algorithm(graph, budget, k, verbose=False)
-        print('\nSpread:', spread)  # spread of best configuration executing k montecarlo iterations
-        print('Best seeds:', [s.id for s in seeds],
-              '\n')  # seeds that give the best influence executing k montecarlo iterations
-        plotDict[k] = spread
+def approximation_error(graph, budget, scale_factor, num_experiments):
+    plot_dict = {}
+    k = 1
+    for _ in range(0, num_experiments):
+        print("Iteration: " + str(_ + 1) + "/" +
+              str(num_experiments) + " | K = " + str(k), end="")
 
-        k = k + int(k * scale_factor)
+        seeds, spread = greedy_algorithm(graph, budget, k)
 
-    lists = sorted(plotDict.items())
+        plot_dict[k] = spread
+        k = math.ceil(k * scale_factor)
+        print("", end="\r")
+
+    print("", end="")
+    lists = sorted(plot_dict.items())
     x, y = zip(*lists)
 
     plt.plot(x, y)
     plt.show()
 
 
-def cumulative_approximation_error(graphs, budget, num_experiment):
-    plotDict = {}
-    k = 2
-    scale_factor = 0.72
-    for _ in range(0, num_experiment):
-        seeds, spreads = cumulative_greedy_algorithm(graphs, budget, k, verbose=False)
-        print('\nCumulative spread:',
-              sum(spreads.values()))  # cumulative_spread of best configuration executing k montecarlo iterations
-        for key, value in seeds.items():
-            print(
-                f'Graph: {key} \tseeds: {[el.id for el in value]}')  # seeds of each graph that give the best influence executing k montecarlo iterations
-        plotDict[k] = sum(
-            spreads.values())  # y axis of the plot shows the cumulative_spread (sum of spread of each single graph)
+def cumulative_approximation_error(graphs, budget, scale_factor, num_experiments):
+    plot_dict = {}
+    k = 1
+    for _ in range(0, num_experiments):
+        print("Iteration: " + str(_ + 1) + "/" +
+              str(num_experiments) + " | K = " + str(k), end="")
 
-        k = k + int(k * scale_factor)
+        seeds, spreads = cumulative_greedy_algorithm(graphs, budget, k)
 
-    lists = sorted(plotDict.items())
+        # y axis of the plot shows the cumulative_spread (sum of spread of each single graph)
+        plot_dict[k] = sum(spreads.values())
+        k = math.ceil(k * scale_factor)
+        print("", end="\r")
+
+    print("", end="")
+    lists = sorted(plot_dict.items())
     x, y = zip(*lists)
 
     plt.plot(x, y)
     plt.show()
 
 
-def point2(graphs, budget, k, num_experiment):
-    print('\n--------------------Greedy algorithm---------------------')
+def point2(graphs, budget, scale_factor, num_experiments):
+    print('\n--------------------Point 2---------------------')
 
-    # find, for each graph, the best seeds_set executing k montecarlo iterations
-    for g in graphs:
-        print(f'\n------------Graph{g.id}------------')
-        seeds, spread = greedy_algorithm(g, budget, k, verbose=False)
-        print('\nSpread:', spread)  # spread of best configuration executing k montecarlo iterations
-        print('Best seeds:',
-              [s.id for s in seeds])  # seeds that give the best influence executing k montecarlo iterations
-
-    print('\n------------------Approximation Error-------------------')
     # approximation error of the graphs (one at a time)
-    for g in graphs:
-        approximation_error(g, budget, num_experiment)
+    for _ in range(len(graphs)):
+        print("--Graph " + str(_ + 1) + "--")
+        approximation_error(graphs[_], budget, scale_factor, num_experiments)
 
 
-def point3(graphs, budget, k, num_experiment):
-    print('\n---------------Cumulative Greedy algorithm---------------')
+def point3(graphs, budget, scale_factor, num_experiments):
+    print('\n--------------------Point 3---------------------')
 
-    # find the best cumulative seeds_set executing k montecarlo iterations
-    seeds, spreads = cumulative_greedy_algorithm(graphs, budget, k, verbose=False)
-    print('\nCumulative spread:',
-          sum(spreads.values()))  # cumulative_spread of best configuration executing k montecarlo iterations
-    print('\nBest seeds:')
-    for key, value in seeds.items():
-        print(
-            f'\tGraph: {key.id} \tseeds: {[el.id for el in value]}')  # seeds of each graph that give the best influence executing k montecarlo iterations
-
-    print('\n-------------Cumulative approximation error--------------')
     # cumulative approximation error of the graphs
-    cumulative_approximation_error(graphs, budget, num_experiment)
+    cumulative_approximation_error(graphs, budget, scale_factor, num_experiments)
 
 
 def point4(true_graph, budget, repetitions, simulations):
     # Copy the original graph
     graph = copy.copy(true_graph)
+
     # But set the probabilities to uniform (0.5)
     graph.adj_matrix = np.where(true_graph.adj_matrix > 0, 0.5, 0)
 
     x_list = []
     y_list = []
 
-    #print(true_graph.adj_matrix)
-    records = []
-
     # Main procedure
-    for r in tqdm(range(repetitions)):
+    for r in range(repetitions):
         # Make epsilon decrease over time, many explorations at the beginning, many exploitations later
         epsilon = (1 - r / repetitions) ** 2
         seeds = choose_seeds(graph, budget, epsilon, simulations)
@@ -200,12 +162,8 @@ def point4(true_graph, budget, repetitions, simulations):
 
         x_list.append(r)
         y_list.append(error)
-    print("-------TRUE MATRIX--------")
-    print(true_graph.adj_matrix)
-    print("-------ESTIMATED MATRIX--------")
-    print(graph.adj_matrix)
 
-    return  x_list, y_list
+    return x_list, y_list
 
 
 def choose_seeds(graph, budget, epsilon, simulations):
@@ -232,6 +190,7 @@ def choose_seeds(graph, budget, epsilon, simulations):
         seeds, _ = greedy_algorithm(graph, budget, simulations)
     return seeds
 
+
 def get_total_error(graph1: Graph, graph2: Graph):
     if len(graph1.nodes) == len(graph2.nodes):
         error = 0
@@ -241,20 +200,7 @@ def get_total_error(graph1: Graph, graph2: Graph):
                 if not math.isclose(graph1.adj_matrix[i][j], 0.0):
                     total_edges += 1
                     error += abs(graph1.adj_matrix[i][j] - graph2.adj_matrix[i][j])
-        return error/total_edges
-
-
-# graph1 = Graph(100, 0.15)
-# graph2 = Graph(250, 0.08)
-# graph3 = Graph(350, 0.07)
-# graphs = [graph1, graph2, graph3]
-
-# budget = 3
-# k = 10             # number of montecarlo iterations)
-# num_experiment = 10
-# x, y = point4(graph1, 3, 1000, 10)
-# plt.plot(x, y)
-# plt.show()
+        return error / total_edges
 
 
 def generate_conversion_rate(prices):
@@ -275,6 +221,7 @@ def point5(graphs, prices, conv_rates):
 
     for exper in range(n_experiments):
         for g in range(len(graphs)):
+
             learner = TS_Learner(n_arms=len(prices), arms=prices)
             env = Environment(len(prices), probabilities=conv_rates[g])
 
@@ -289,6 +236,7 @@ def point5(graphs, prices, conv_rates):
                     reward = env.round(pulled_arm)
                     learner.update(pulled_arm, reward)
                     r += prices[pulled_arm] * reward
+
                 revenue[g, exper, t] = r
 
             # compute revenue of each arm da printare (facoltativo)
@@ -361,17 +309,29 @@ def point5(graphs, prices, conv_rates):
     plt.show()
 
 
-graph1 = Graph(300, 0.08)
-graph2 = Graph(250, 0.08)
-graph3 = Graph(350, 0.07)
-graphs = [graph1, graph2, graph3]
+# ------------------ Example point 5 -------------------------
 
-budget = 3
-k = 10  # number of montecarlo iterations
-num_experiment = 10
+# graph1 = Graph(300, 0.08)
+# graph2 = Graph(250, 0.08)
+# graph3 = Graph(350, 0.07)
+# graphs = [graph1, graph2, graph3]
+#
+# budget = 3
+# k = 10  # number of montecarlo iterations
+# num_experiment = 10
+#
+# prices = [500, 690, 750, 850]
+# conv_rates = [generate_conversion_rate(prices) for g in graphs]   # each social network has its conv_rate
+#
+# point5(graphs, prices, conv_rates)
 
-prices = [500, 690, 750, 850]
-# conv_rates = {g: generate_conversion_rate(prices) for g in graphs} 
-conv_rates = [generate_conversion_rate(prices) for g in graphs]   # each social network has its conv_rate
+# ------------------ Example point 3  ----------------------------
+# graphs = [Graph(100, 0.2), Graph(125, 0.2), Graph(150, 0.2)]
+# budget = 3
+# scale_factor = 1.2
+# num_experiments = 15
 
-point5(graphs, prices, conv_rates)
+# point3(graphs, budget, scale_factor, num_experiments)
+# x, y = point4(Graph(20, 0.1), budget, 100, 1)
+# plt.plot(x, y)
+# plt.show()
