@@ -32,6 +32,26 @@ class TS_Learner(Learner):
         self.t += 1
 
 
+class SWTS_Learner(TS_Learner):
+    def __init__(self, n_arms, arms, window_size):
+        super().__init__(n_arms, arms)
+        self.window_size = window_size
+        self.pulled_arms = np.array([])
+
+    def update(self, pulled_arm, reward):
+        self.t += 1
+        self.update_observations(pulled_arm, reward)
+        self.pulled_arms = np.append(self.pulled_arms, pulled_arm)
+        for arm in range(0, self.n_arms):
+            n_samples = np.sum(self.pulled_arms[-self.window_size:] == arm)
+            if n_samples != 0:
+                cum_rew = np.sum(self.rewards_per_arm[arm][-n_samples:])
+            else:
+                cum_rew = 0
+            self.beta_parameters[arm, 0] = cum_rew + 1.0
+            self.beta_parameters[arm, 1] = n_samples - cum_rew + 1.0
+
+
 class Environment():
 
     def __init__(self, n_arms, probabilities):
@@ -47,15 +67,16 @@ class Environment():
 
 class Non_Stationary_Environment(Environment):
 
-    def __init__(self, n_arms, probabilities, horizon):
+    def __init__(self, n_arms, probabilities, horizon, n_phases):
 
         super().__init__(n_arms, probabilities)
         self.t = 0
         self.horizon = horizon
+        self.n_phases = n_phases
 
     def round(self, pulled_arm):
 
-        n_phases = len(self.probabilities)
+        n_phases = self.n_phases
         phase_size = self.horizon / n_phases
         current_phase = int(self.t / phase_size)
         p = self.probabilities[current_phase][pulled_arm]

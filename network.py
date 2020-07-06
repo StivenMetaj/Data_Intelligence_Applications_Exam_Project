@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 
-np.random.seed(12345)
+np.random.seed(123456789)
 
 
 class Features:
