@@ -53,7 +53,13 @@ class Beta(object):
 class Graph(object):
     id = 1  # graph id
 
-    def __init__(self, n_nodes, connectivity):
+    def __init__(self, n_nodes=1, connectivity=0.5, copy=None):
+        if copy is None:
+            self.constructor(n_nodes, connectivity)
+        else:
+            self.copy_constructor(copy)
+
+    def constructor(self, n_nodes, connectivity):
         self.id = Graph.id
         Graph.id += 1
 
@@ -74,6 +80,20 @@ class Graph(object):
                     # features_value / how_much_low to normalize with respect to the uniform
                     how_much_low = 10
                     self.adj_matrix[i][j] = np.random.uniform(0, 1 / how_much_low) + (features_value / how_much_low)
+
+    def copy_constructor(self, copy):
+        self.id = copy.id
+        self.n_nodes = copy.n_nodes
+        self.connectivity = copy.connectivity
+        self.adj_matrix = np.zeros([self.n_nodes, self.n_nodes], dtype=np.float)
+        for i in range(self.n_nodes):
+            for j in range(self.n_nodes):
+                self.adj_matrix[i][j] = copy.adj_matrix[i][j]
+        self.nodes = []
+        for i in range(self.n_nodes):
+            self.nodes.append(copy.nodes[i])
+        self.beta_parameters_matrix = np.empty((self.n_nodes, self.n_nodes), dtype=object)
+        for i in np.ndindex(self.beta_parameters_matrix.shape): self.beta_parameters_matrix[i] = Beta()
 
     # Evaluate influence of n1 over n2 (over the features)
     def evaluate_influence(self, n1, n2):
@@ -159,7 +179,8 @@ class Graph(object):
             new_activated = []
             for active in activated:
                 for neighborg in active.neighbors:
-                    if live_edges[active.id][neighborg.id] and not (neighborg in new_activated or neighborg in activated):
+                    if live_edges[active.id][neighborg.id] and not (
+                            neighborg in new_activated or neighborg in activated):
                         self.beta_parameters_matrix[active.id][neighborg.id].a += 1
                         new_activated.append(neighborg)
                     else:
@@ -190,5 +211,5 @@ class Graph(object):
         seeds = []
         for _ in range(n):
             seeds.append(random.choice(list(set(self.nodes) - set(seeds))))
-    
+
         return seeds

@@ -131,11 +131,19 @@ def point3(graphs, budget, scale_factor, num_experiments):
     cumulative_approximation_error(graphs, budget, scale_factor, num_experiments)
 
 
-def point4(true_graph, budget, repetitions, simulations):
+def point4(true_graph: Graph, budget, repetitions, simulations):
     # Copy the original graph
-    graph = copy.copy(true_graph)
+    # graph = Graph(true_graph.n_nodes, true_graph.connectivity)
+    # graph.id = true_graph.id
+    # graph.nodes = []
+    # for i in range(len(true_graph.nodes)):
+    #     graph.nodes.append(true_graph.nodes[i])
+    #
+    #
+    # # But set the probabilities to uniform (0.5)
+    # graph.adj_matrix = np.where(true_graph.adj_matrix > 0, 0.5, 0)
 
-    # But set the probabilities to uniform (0.5)
+    graph = Graph(copy=true_graph)
     graph.adj_matrix = np.where(true_graph.adj_matrix > 0, 0.5, 0)
 
     x_list = []
@@ -143,6 +151,8 @@ def point4(true_graph, budget, repetitions, simulations):
 
     # Main procedure
     for r in range(repetitions):
+        print("Iteration: " + str(r + 1) + "/" +
+              str(repetitions), end="")
         # Make epsilon decrease over time, many explorations at the beginning, many exploitations later
         epsilon = (1 - r / repetitions) ** 2
         seeds = choose_seeds(graph, budget, epsilon, simulations)
@@ -163,6 +173,8 @@ def point4(true_graph, budget, repetitions, simulations):
 
         x_list.append(r)
         y_list.append(error)
+        print("", end="\r")
+    print("", end="")
 
     return x_list, y_list
 
@@ -418,20 +430,20 @@ def point6(graphs, prices, conv_rates, n_phases):
 # point5(graphs, prices, conv_rates)
 
 # ------------------ Example point 6  ----------------------------
-graph1 = Graph(300, 0.08)
-graph2 = Graph(250, 0.08)
-graph3 = Graph(350, 0.07)
-graphs = [graph1, graph2, graph3]
-
-budget = 3
-num_experiment = 10
-n_phases = 3
-prices = [500, 690, 750, 850]
-# each social network has its conv_rate for each phase
-conv_rates = [[generate_conversion_rate(prices) for phase in range(n_phases)] for g in graphs]
-conv_rates = np.array(conv_rates)
-
-point6(graphs, prices, conv_rates, n_phases)
+# graph1 = Graph(300, 0.08)
+# graph2 = Graph(250, 0.08)
+# graph3 = Graph(350, 0.07)
+# graphs = [graph1, graph2, graph3]
+#
+# budget = 3
+# num_experiment = 10
+# n_phases = 3
+# prices = [500, 690, 750, 850]
+# # each social network has its conv_rate for each phase
+# conv_rates = [[generate_conversion_rate(prices) for phase in range(n_phases)] for g in graphs]
+# conv_rates = np.array(conv_rates)
+#
+# point6(graphs, prices, conv_rates, n_phases)
 
 # ------------------ Example point 3  ----------------------------
 # graphs = [Graph(100, 0.2), Graph(125, 0.2), Graph(150, 0.2)]
@@ -440,6 +452,13 @@ point6(graphs, prices, conv_rates, n_phases)
 # num_experiments = 15
 
 # point3(graphs, budget, scale_factor, num_experiments)
-# x, y = point4(Graph(20, 0.1), budget, 100, 1)
-# plt.plot(x, y)
-# plt.show()
+
+# ------------------ Example point 4  ----------------------------
+graphs = [Graph(100, 0.2), Graph(125, 0.2), Graph(150, 0.2)]
+budget = 3
+scale_factor = 1.2
+num_experiments = 15
+
+x, y = point4(Graph(1000, 0.00001), budget, 2, 1)
+plt.plot(x, y)
+plt.show()
