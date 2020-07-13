@@ -345,7 +345,6 @@ def point6(graphs, prices, conv_rates, n_phases):
 
     # compute the cumulative true expected revenue
     true_expect_revenue = np.zeros([len(graphs), n_phases, len(prices)])
-
     for g, conv_rate in enumerate(conv_rates):
         for phase in range(n_phases):
             true_expect_revenue[g][phase] = conv_rate[phase] * prices
@@ -369,37 +368,59 @@ def point6(graphs, prices, conv_rates, n_phases):
             regret.append(opt - actual)
             opt_revenue.append(opt)
             actual_revenue.append(actual)
-        # cumulative values over the graphs
-        # print the cumulatives instantaneous rewards
+
+        # print the instantaneous rewards
         plt.plot(time, opt_revenue)
         plt.plot(time, actual_revenue)
         plt.show()
 
-        # print the cumulative expected reward
+        # print the expected reward
         plt.plot(time, np.cumsum(actual_revenue))
         plt.plot(time, np.cumsum(opt_revenue))
         plt.show()
 
-        # print the cumulative expected regret
+        # print the expected regret
         plt.plot(time, np.cumsum(regret))
         plt.show()
         cum_regret += regret
         cum_actual += actual_revenue
         cum_opt += opt_revenue
 
-    # # print the cumulatives instantaneous rewards
-    # plt.plot(time, cum_opt)
-    # plt.plot(time, cum_actual)
-    # plt.show()
+    # print the cumulatives instantaneous rewards
+    plt.plot(time, cum_opt)
+    plt.plot(time, cum_actual)
+    plt.show()
 
-    # # print the cumulative expected reward
-    # plt.plot(time, np.cumsum(cum_actual))
-    # plt.plot(time, np.cumsum(cum_opt))
-    # plt.show()
+    # print the cumulative expected reward
+    plt.plot(time, np.cumsum(cum_actual))
+    plt.plot(time, np.cumsum(cum_opt))
+    plt.show()
 
-    # # print the cumulative expected regret
-    # plt.plot(time, np.cumsum(cum_regret))
-    # plt.show()
+    # print the cumulative expected regret
+    plt.plot(time, np.cumsum(cum_regret))
+    plt.show()
+
+# ------------------ Example point 3  ----------------------------
+# graphs = [Graph(100, 0.2), Graph(125, 0.2), Graph(150, 0.2)]
+# budget = 3
+# scale_factor = 1.2
+# num_experiments = 15
+
+# point3(graphs, budget, scale_factor, num_experiments)
+# x, y = point4(Graph(20, 0.1), budget, 100, 1)
+# plt.plot(x, y)
+# plt.show()
+
+# ------------------ Example point 4  ----------------------------
+graphs = [Graph(100, 0.2), Graph(125, 0.2), Graph(150, 0.2)]
+budget = 3
+scale_factor = 1.2
+num_experiments = 15
+
+point3(graphs, budget, scale_factor, num_experiments)
+x, y = point4(Graph(20, 0.1), budget, 100, 1)
+plt.plot(x, y)
+plt.show()
 
 # ------------------ Example point 5 -------------------------
 
@@ -418,28 +439,18 @@ def point6(graphs, prices, conv_rates, n_phases):
 # point5(graphs, prices, conv_rates)
 
 # ------------------ Example point 6  ----------------------------
-graph1 = Graph(300, 0.08)
-graph2 = Graph(250, 0.08)
-graph3 = Graph(350, 0.07)
-graphs = [graph1, graph2, graph3]
 
-budget = 3
-num_experiment = 10
-n_phases = 3
-prices = [500, 690, 750, 850]
-# each social network has its conv_rate for each phase
-conv_rates = [[generate_conversion_rate(prices) for phase in range(n_phases)] for g in graphs]
-conv_rates = np.array(conv_rates)
+# graph1 = Graph(300, 0.08)
+# graph2 = Graph(250, 0.08)
+# graph3 = Graph(350, 0.07)
+# graphs = [graph1, graph2, graph3]
 
-point6(graphs, prices, conv_rates, n_phases)
-
-# ------------------ Example point 3  ----------------------------
-# graphs = [Graph(100, 0.2), Graph(125, 0.2), Graph(150, 0.2)]
 # budget = 3
-# scale_factor = 1.2
-# num_experiments = 15
+# num_experiment = 50
+# n_phases = 3
+# prices = [500, 690, 750, 850]
+# # each social network has its conv_rate for each phase
+# conv_rates = [[generate_conversion_rate(prices) for phase in range(n_phases)] for g in graphs]
+# conv_rates = np.array(conv_rates)
 
-# point3(graphs, budget, scale_factor, num_experiments)
-# x, y = point4(Graph(20, 0.1), budget, 100, 1)
-# plt.plot(x, y)
-# plt.show()
+# point6(graphs, prices, conv_rates, n_phases)
