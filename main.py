@@ -131,11 +131,19 @@ def point3(graphs, budget, scale_factor, num_experiments):
     cumulative_approximation_error(graphs, budget, scale_factor, num_experiments)
 
 
-def point4(true_graph, budget, repetitions, simulations):
+def point4(true_graph: Graph, budget, repetitions, simulations):
     # Copy the original graph
-    graph = copy.copy(true_graph)
+    # graph = Graph(true_graph.n_nodes, true_graph.connectivity)
+    # graph.id = true_graph.id
+    # graph.nodes = []
+    # for i in range(len(true_graph.nodes)):
+    #     graph.nodes.append(true_graph.nodes[i])
+    #
+    #
+    # # But set the probabilities to uniform (0.5)
+    # graph.adj_matrix = np.where(true_graph.adj_matrix > 0, 0.5, 0)
 
-    # But set the probabilities to uniform (0.5)
+    graph = Graph(copy=true_graph)
     graph.adj_matrix = np.where(true_graph.adj_matrix > 0, 0.5, 0)
 
     x_list = []
@@ -143,11 +151,13 @@ def point4(true_graph, budget, repetitions, simulations):
 
     # Main procedure
     for r in range(repetitions):
+        print(f'Iteration: {r + 1}/{repetitions}')
         # Make epsilon decrease over time, many explorations at the beginning, many exploitations later
         epsilon = (1 - r / repetitions) ** 2
         seeds = choose_seeds(graph, budget, epsilon, simulations)
         graph.influence_episode(seeds, true_graph.adj_matrix)
         # test_seeds(graph, seeds)
+        # in this case where return only of the indices of the non-zero value
         indeces = np.where(graph.adj_matrix > 0)
 
         # Retrieve for each of them alpha and beta, compute the deviation and update probability
@@ -163,6 +173,8 @@ def point4(true_graph, budget, repetitions, simulations):
 
         x_list.append(r)
         y_list.append(error)
+        print("", end="\r")
+    print("", end="")
 
     return x_list, y_list
 
@@ -312,7 +324,7 @@ def point5(graphs, prices, conv_rates):
 def point6(graphs, prices, conv_rates, n_phases):
     n_experiments = 40
     T = 50  # number of days
-    window_size = 300 * int((np.sqrt(T)))
+    window_size = int((np.sqrt(T)))
     # init revenue and n_customer for each graph, expeeriment and day
     revenue = np.zeros([len(graphs), n_experiments, T])
     n_customers = np.zeros([len(graphs), n_experiments, T])
@@ -320,7 +332,6 @@ def point6(graphs, prices, conv_rates, n_phases):
 
     for exper in range(n_experiments):
         for g in range(len(graphs)):
-
             learner = SWTS_Learner(len(prices), prices, window_size, T)
             env = Non_Stationary_Environment(len(prices), conv_rates[g], T)
 
@@ -400,6 +411,119 @@ def point6(graphs, prices, conv_rates, n_phases):
     plt.plot(time, np.cumsum(cum_regret))
     plt.show()
 
+
+def point7(graphs, prices, conv_rates, n_phases, budget, simulations):
+    n_experiments = 3
+    T = 1000
+    window_size = int((np.sqrt(T)))
+    # init revenue and n_customer for each graph, expeeriment and day
+    revenue = np.zeros([len(graphs), n_experiments, T])
+    n_customers = np.zeros([len(graphs), n_experiments, T])
+    seller = [g.random_seeds(1) for g in graphs]
+
+    for exper in range(n_experiments):
+        for g in range(len(graphs)):
+            learner = SWTS_Learner(len(prices), prices, window_size, T)
+            env = Non_Stationary_Environment(len(prices), conv_rates[g], T)
+            # init the graph for point 4
+            graph = Graph(copy=graphs[g])
+            graph.adj_matrix = np.where(graphs[g].adj_matrix > 0, 0.5, 0)
+            print(f'Experiment : {exper+1}/{n_experiments} Graph : {g+1}/{len(graphs)}')
+            for t in range(T):
+                r = 0      # actual revenue of day t
+                # every day the sellers make social influence
+                epsilon = (1 - t / T) ** 2
+                seeds = choose_seeds(graph, budget, epsilon, simulations)
+                graph.influence_episode(seeds, graphs[g].adj_matrix)
+                indeces = np.where(graph.adj_matrix > 0)
+
+                # Retrieve for each of them alpha and beta, compute the deviation and update probability
+                for i in range(len(indeces[0])):
+                    x = indeces[0][i]
+                    y = indeces[1][i]
+                    alpha = graph.beta_parameters_matrix[x][y].a
+                    beta = graph.beta_parameters_matrix[x][y].b
+                    mu = alpha / (alpha + beta)
+                    graph.adj_matrix[x][y] = mu
+
+                potential_customers = graph.social_influence(seller[g])
+
+                n_customers[g][exper][t] = len(potential_customers)
+
+                for _ in potential_customers:
+                    pulled_arm = learner.pull_arm()
+                    reward = env.round(pulled_arm, t)
+                    learner.update(pulled_arm, reward, t)
+                    r += prices[pulled_arm] * reward
+                # revenue of the day
+                revenue[g, exper, t] = r
+
+    # average over experiments
+    avg_revenue = np.average(revenue, 1)
+    avg_customers = np.average(n_customers, 1)
+
+    # compute the cumulative true expected revenue
+    true_expect_revenue = np.zeros([len(graphs), n_phases, len(prices)])
+    for g, conv_rate in enumerate(conv_rates):
+        for phase in range(n_phases):
+            true_expect_revenue[g][phase] = conv_rate[phase] * prices
+
+    time = range(T)
+    cum_opt = np.zeros(T)
+    cum_actual = np.zeros(T)
+    cum_regret = np.zeros(T)
+    for g in range(len(graphs)):
+        opt_revenue = []
+        actual_revenue = []
+        regret = []
+        for day in range(T):
+            phase_size = T / n_phases
+            curr_phase = int(day / phase_size)
+            # compute the clairvoyant revenue
+            opt = np.max(true_expect_revenue[g][curr_phase]) * avg_customers[g][day]
+            # revenue of the algorithm
+            actual = avg_revenue[g][day]
+            # compute the instantaneous regret
+            regret.append(opt - actual)
+            opt_revenue.append(opt)
+            actual_revenue.append(actual)
+        # print the instantaneous rewards
+        plt.plot(time, opt_revenue)
+        plt.plot(time, actual_revenue)
+        plt.title(f'Instantaneous reward of graph {g}')
+        plt.show()
+
+        # print the expected reward
+        plt.plot(time, np.cumsum(actual_revenue))
+        plt.plot(time, np.cumsum(opt_revenue))
+        plt.title(f'Expected reward of graph {g}')
+        plt.show()
+
+        # print the expected regret
+        plt.plot(time, np.cumsum(regret))
+        plt.title(f'Expected regret of graph {g}')
+        plt.show()
+        cum_regret += regret
+        cum_actual += actual_revenue
+        cum_opt += opt_revenue
+
+    # # print the cumulatives instantaneous rewards
+    # plt.plot(time, cum_opt)
+    # plt.plot(time, cum_actual)
+    # plt.title(f'Cumulative instantaneous reward')
+    # plt.show()
+
+    # # print the cumulative expected reward
+    # plt.plot(time, np.cumsum(cum_actual))
+    # plt.plot(time, np.cumsum(cum_opt))
+    # plt.title(f'Cumulative expected reward')
+    # plt.show()
+
+    # # print the cumulative expected regret
+    # plt.plot(time, np.cumsum(cum_regret))
+    # plt.title(f'Cumulative expected regret reward')
+    # plt.show()
+
 # ------------------ Example point 3  ----------------------------
 # graphs = [Graph(100, 0.2), Graph(125, 0.2), Graph(150, 0.2)]
 # budget = 3
@@ -411,16 +535,15 @@ def point6(graphs, prices, conv_rates, n_phases):
 # plt.plot(x, y)
 # plt.show()
 
-# ------------------ Example point 4  ----------------------------
-graphs = [Graph(100, 0.2), Graph(125, 0.2), Graph(150, 0.2)]
-budget = 3
-scale_factor = 1.2
-num_experiments = 15
 
-point3(graphs, budget, scale_factor, num_experiments)
-x, y = point4(Graph(20, 0.1), budget, 100, 1)
-plt.plot(x, y)
-plt.show()
+# ------------------ Example point 4  ----------------------------
+# budget = 3
+# graph = Graph(40, 0.1)
+# repetitions = 100
+# n_experiments = 1
+# x, y = point4(graph, budget, repetitions, n_experiments)
+# plt.plot(x, y)
+# plt.show()
 
 # ------------------ Example point 5 -------------------------
 
@@ -446,11 +569,26 @@ plt.show()
 # graphs = [graph1, graph2, graph3]
 
 # budget = 3
-# num_experiment = 50
+# num_experiment = 100
 # n_phases = 3
 # prices = [500, 690, 750, 850]
 # # each social network has its conv_rate for each phase
 # conv_rates = [[generate_conversion_rate(prices) for phase in range(n_phases)] for g in graphs]
 # conv_rates = np.array(conv_rates)
-
 # point6(graphs, prices, conv_rates, n_phases)
+
+# ------------------ Example point 7  ----------------------------
+
+graph1 = Graph(50, 0.08)
+graph2 = Graph(50, 0.08)
+graph3 = Graph(30, 0.07)
+graphs = [graph1, graph2, graph3]
+
+budget = 3
+simulations = 5
+n_phases = 3
+prices = [500, 690, 750, 850]
+# each social network has its conv_rate for each phase
+conv_rates = [[generate_conversion_rate(prices) for phase in range(n_phases)] for g in graphs]
+conv_rates = np.array(conv_rates)
+point7(graphs, prices, conv_rates, n_phases, budget, simulations)

@@ -41,12 +41,15 @@ class SWTS_Learner(TS_Learner):
     def update(self, pulled_arm, reward, day):
         self.t += 1
         self.update_observation(pulled_arm, reward)
-        self.pulled_arms = np.append(self.pulled_arms, pulled_arm)
-        self.pulled_arms_per_day[day][pulled_arm] += 1
-        self.pulled_arms = np.append(self.pulled_arms, pulled_arm)
+        self.pulled_arms_per_day[day, pulled_arm] += 1
         for arm in range(0, self.n_arms):
-            # n_samples = int(np.sum(self.pulled_arms_per_day[-self.window_size:][arm]))
-            n_samples = np.sum(self.pulled_arms[-self.window_size:] == arm)
+
+            if (day + 1 - self.window_size) < 0:
+                start_index = 0
+            else:
+                start_index = day + 1 - self.window_size
+
+            n_samples = int(np.sum(self.pulled_arms_per_day[start_index:(day+1), arm]))
 
             if n_samples != 0:
                 cum_rew = np.sum(self.rewards_per_arm[arm][-n_samples:])
