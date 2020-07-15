@@ -132,7 +132,6 @@ class Graph(object):
 
         return active
 
-    # The method returns
     def monte_carlo_sampling(self, seeds, max_repetition):
         nodes_activ_prob = np.zeros(self.n_nodes, dtype=np.float)
 
@@ -188,27 +187,6 @@ class Graph(object):
 
         return activated
 
-    # # Given the id of the node and its realizations of binomial random variables
-    # # we update the beta parameters of each edge of that node
-    # def update_estimations(self, id, realizations):
-    #     temp = self.nodes[id].estimate_parameters
-    #     for i in range(len(realizations)):
-    #         if realizations[i] != -1:
-    #             temp[i][0] += realizations[i]
-    #             temp[i][1] += 1 - realizations[i]
-    #
-    # # We change the probabilities of our adj matrix following the estimated beta parameters!
-    # def update_weights(self):
-    #     for i in self.nodes:
-    #         id1 = i.id
-    #         neighbor_id = 0
-    #         for j in self.nodes:
-    #             id2 = j.id
-    #             if self.adj_matrix[id1][id2] != 0:
-    #                 self.adj_matrix[id1][id2] = np.random.beta(a=i.estimate_parameters[neighbor_id][0],
-    #                                                            b=i.estimate_parameters[neighbor_id][1])
-    #                 neighbor_id += 1
-    #
     def random_seeds(self, n=1):
         seeds = []
         for _ in range(n):
