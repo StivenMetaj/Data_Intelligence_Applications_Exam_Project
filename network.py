@@ -126,11 +126,11 @@ class Graph(object):
             for a in activated:
                 neighbors = a.neighbors
                 for n in neighbors:
-                    if n not in active and random.uniform(0, 1) < self.adj_matrix[a.id][n.id]:
+                    if n not in active and np.random.binomial(1, self.adj_matrix[a.id][n.id]) == 1:
                         new_activated.append(n)
                         active.append(n)
 
-        return active
+        return len(active)
 
     # The method returns
     def monte_carlo_sampling(self, seeds, max_repetition):
@@ -171,6 +171,7 @@ class Graph(object):
 
         live_edges = binomial_matrix > 0
 
+
         activated = []
         new_activated = seeds
 
@@ -186,7 +187,7 @@ class Graph(object):
                     else:
                         self.beta_parameters_matrix[active.id][neighborg.id].b += 1
 
-        return activated
+        return len(activated) - len(seeds)
 
     # # Given the id of the node and its realizations of binomial random variables
     # # we update the beta parameters of each edge of that node
