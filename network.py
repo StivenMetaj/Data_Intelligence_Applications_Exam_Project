@@ -79,7 +79,7 @@ class Graph(object):
                     # Not uniform(0, 1) because we prefer low probabilities
                     features_value = self.evaluate_influence(self.nodes[i], self.nodes[j])
                     # features_value / how_much_low to normalize with respect to the uniform
-                    how_much_low = 10
+                    how_much_low = 20
                     self.adj_matrix[i][j] = np.random.uniform(0, 1 / how_much_low) + (features_value / how_much_low)
 
     def copy_constructor(self, copy):
@@ -113,7 +113,15 @@ class Graph(object):
                 (n1.features.location, n2.features.location)
 
         interests_influence = np.dot(n1.features.interests, n2.features.interests) / 6
-        total_influence = authority * (gender_influence + age_influence + interests_influence)
+
+        if self.id is 1:
+            age_influence *= 2
+        elif self.id is 2:
+            interests_influence *= 2
+        elif self.id is 3:
+            authority *= 2
+
+        total_influence = authority * (gender_influence + age_influence + interests_influence + location_influence)
         return total_influence
 
     # Given a set of seeds, the method returns the nodes that are active after the social influence
@@ -170,7 +178,6 @@ class Graph(object):
             binomial_matrix[x][y] = r
 
         live_edges = binomial_matrix > 0
-
 
         activated = []
         new_activated = seeds

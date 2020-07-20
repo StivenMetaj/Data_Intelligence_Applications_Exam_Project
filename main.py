@@ -77,6 +77,8 @@ def cumulative_greedy_algorithm(graphs, budget, k):
 def approximation_error(graph, budget, scale_factor, num_experiments):
     plot_dict = {}
     plot_dict_2 = {}
+    plot_dict_3 = {}
+    plot_dict_4 = {}
     real_spread = greedy_algorithm(graph, budget, num_experiments)[1]
     k = 1
     for _ in range(0, num_experiments-1):
@@ -166,7 +168,8 @@ def get_beta_update_variables(indeces, i, graph):
     y = indeces[1][i]
     alpha = graph.beta_parameters_matrix[x][y].a
     beta = graph.beta_parameters_matrix[x][y].b
-    mu = alpha / (alpha + beta)
+    #mu = alpha / (alpha + beta)
+    mu = np.random.beta(alpha, beta)
     return x, y, alpha, beta, mu
 
 
@@ -190,6 +193,17 @@ def choose_seeds(graph, budget, epsilon, simulations):
 
         # print(graph.adj_matrix)
         seeds, _ = greedy_algorithm(graph, budget, simulations)
+    return seeds
+
+def choose_seeds_from_sampling(graph, budget, simulations):
+    indeces = np.where(graph.adj_matrix > 0)
+
+    # Retrieve for each of them alpha and beta, compute the deviation and update probability
+    for i in range(len(indeces[0])):
+        x, y, alpha, beta, mu = get_beta_update_variables(indeces, i, graph)
+        graph.adj_matrix[x][y] = mu
+    seeds, _ = greedy_algorithm(graph, budget, simulations)
+
     return seeds
 
 
@@ -222,18 +236,17 @@ def point4(true_graph: Graph, budget, repetitions, simulations):
     # Main procedure
     for r in range(repetitions):
         print("Iteration: " + str(r + 1) + "/" + str(repetitions), end="")
-        # Make epsilon decrease over time, many explorations at the beginning, many exploitations later
-        epsilon = (1 - r / repetitions) ** 2
-        seeds = choose_seeds(graph, budget, epsilon, simulations)
+        #epsilon = (1 - r / repetitions) ** 2
+        seeds = choose_seeds_from_sampling(graph, budget, simulations)
         graph.influence_episode(seeds, true_graph.adj_matrix)
 
         # in this case where return only of the indices of the non-zero value
         indices = np.where(graph.adj_matrix > 0)
 
         # Retrieve for each of them alpha and beta, compute the deviation and update probability
-        for i in range(len(indices[0])):
-            x, y, alpha, beta, mu = get_beta_update_variables(indices, i, graph)
-            graph.adj_matrix[x][y] = mu
+        # for i in range(len(indices[0])):
+        #     x, y, alpha, beta, mu = get_beta_update_variables(indices, i, graph)
+        #     graph.adj_matrix[x][y] = mu
 
         error = get_total_error(graph, true_graph)
         total_error += error
