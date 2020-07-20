@@ -126,11 +126,11 @@ class Graph(object):
             for a in activated:
                 neighbors = a.neighbors
                 for n in neighbors:
-                    if n not in active and random.uniform(0, 1) < self.adj_matrix[a.id][n.id]:
+                    if n not in active and np.random.binomial(1, self.adj_matrix[a.id][n.id]) == 1:
                         new_activated.append(n)
                         active.append(n)
 
-        return active
+        return len(active)
 
     def monte_carlo_sampling(self, seeds, max_repetition):
         nodes_activ_prob = np.zeros(self.n_nodes, dtype=np.float)
@@ -170,6 +170,7 @@ class Graph(object):
 
         live_edges = binomial_matrix > 0
 
+
         activated = []
         new_activated = seeds
 
@@ -185,7 +186,7 @@ class Graph(object):
                     else:
                         self.beta_parameters_matrix[active.id][neighborg.id].b += 1
 
-        return activated
+        return len(activated) - len(seeds)
 
     def random_seeds(self, n=1):
         seeds = []

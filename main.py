@@ -4,7 +4,8 @@ import random
 
 import matplotlib.pyplot as plt
 import numpy as np
-from mab import (Environment, Non_Stationary_Environment, SWTS_Learner, TS_Learner)
+from mab import (Environment, Non_Stationary_Environment, SWTS_Learner,
+                 TS_Learner)
 # perchè pylab?
 from matplotlib.pylab import plt
 from network import Graph
@@ -221,36 +222,44 @@ def generate_conversion_rate(prices):
     conversion_rates = np.sort(val)[::-1]
     return conversion_rates
 
-
-def point5(graphs, prices, conv_rates, n_experiments, T):
+def point5(graphs, prices, conv_rates, k, budget, n_experiments, T):
     # init revenue and n_customer for each graph, expeeriment and day
     revenue = np.zeros([len(graphs), n_experiments, T])
     n_customers = np.zeros([len(graphs), n_experiments, T])
-    seller = [g.random_seeds(1) for g in graphs]
     revenue_per_price = np.zeros([len(graphs), n_experiments, len(prices)])
 
-    for exper in range(n_experiments):
-        for g in range(len(graphs)):
+    graphs_seeds = []
 
+    for g in range(len(graphs)):
+        seeds, _ = greedy_algorithm(graphs[g], budget, k)
+        graphs_seeds.append(seeds)
+
+    for exper in tqdm(range(n_experiments)):
+        # print(f'experiment : {exper + 1}/{n_experiments}')
+        for g in range(len(graphs)):
+            print(f'graph : {g + 1}/{len(graphs)}')
             learner = TS_Learner(n_arms=len(prices), arms=prices)
             env = Environment(len(prices), probabilities=conv_rates[g])
 
             for t in range(T):
-                r = 0  # actual revenue of day t
-                potential_customers = graphs[g].social_influence(seller[g])
-                # every day the seller does social influence
-                n_customers[g][exper][t] = len(potential_customers)
 
-                for _ in potential_customers:
+                # print(f'day {t} graph: {g}')
+                r = 0      # actual revenue of day t
+                potential_customers = graphs[g].social_influence(graphs_seeds[g])
+                # every day the seller does social influence
+                n_customers[g][exper][t] = potential_customers
+
+                for _ in range(potential_customers):
                     pulled_arm = learner.pull_arm()
                     reward = env.round(pulled_arm)
                     learner.update(pulled_arm, reward)
                     r += prices[pulled_arm] * reward
+
                 revenue[g, exper, t] = r
 
             # compute revenue of each arm da printare (facoltativo)
             for arm in range(len(prices)):
-                purchases = np.sum((np.array(learner.pulled_arm) == arm) * (np.array(learner.rewards)))
+                purchases = np.sum((np.array(learner.pulled_arms) == arm) * (np.array(learner.rewards)))
                 revenue_arm = purchases * prices[arm]
                 revenue_per_price[g][exper][arm] = revenue_arm
 
@@ -261,25 +270,14 @@ def point5(graphs, prices, conv_rates, n_experiments, T):
 
     # print the revenue for each price and graph
     print(prices)
-    cumulative_revenue = np.sum(avg_revenue_per_price, 0)
     for g in range(len(graphs)):
         print(g, ':', list(avg_revenue_per_price[g]))
-
-    # print the cumulative revenue for each price
-    print(f'cumulative_revenue: {cumulative_revenue}')
 
     # compute the cumulative true expected revenue
     true_expect_revenue = np.zeros([len(graphs), len(prices)])
     for g, conv_rate in enumerate(conv_rates):
-        true_expect_revenue[g] = conv_rate * prices
-    cum_true_expected_revenue = np.sum(true_expect_revenue, 0)
 
-    # print the best TS price and the true best price
-    print(f'expected revenue per day: {cum_true_expected_revenue}')
-    best_price = prices[np.argmax(cum_true_expected_revenue)]
-    print(f'Best price: {best_price}')
-    best_price_alg = prices[np.argmax(cumulative_revenue)]
-    print(f'Best price algorithm: {best_price_alg}')
+        true_expect_revenue[g] = conv_rate*prices
 
     time = range(T)
     cum_opt = np.zeros(T)
@@ -291,53 +289,93 @@ def point5(graphs, prices, conv_rates, n_experiments, T):
         regret = []
         for day in range(T):
             # compute the clairvoyant revenue
-            opt = np.max(true_expect_revenue[g]) * avg_customers[g][day]
+            avg_customers_per_graph = np.mean(avg_customers, 1)
+            opt = np.max(true_expect_revenue[g]) * avg_customers_per_graph[g]
             # revenue of the algorithm
             actual = avg_revenue[g][day]
             # compute the instantaneous regret
             regret.append(opt - actual)
             opt_revenue.append(opt)
             actual_revenue.append(actual)
-        # cumulative values over the graphs
-        cum_regret += regret
-        cum_actual += actual_revenue
-        cum_opt += opt_revenue
+        # print the instantaneous revenue
+        plt.figure(1)
+        plt.subplot(221)
+        plt.plot(time, actual_revenue, label='TS_SW')
+        plt.plot(time, opt_revenue, '--', label='clairvoyant')
+        plt.ylabel('revenues')
+        plt.xlabel('Time Horizon')
+        plt.legend(loc="lower right")
 
-    # print the cumulatives instantaneous rewards
-    plt.plot(time, cum_opt)
-    plt.plot(time, cum_actual)
-    plt.show()
+        # print the cumulative revenue
+        plt.subplot(222)
+        plt.plot(time, np.cumsum(actual_revenue), label='TS_SW')
+        plt.plot(time, np.cumsum(opt_revenue), '--', label='clairvoyant')
+        plt.xlabel('Time Horizon')
+        plt.ylabel('revenues')
+        plt.legend(loc="lower right")
 
-    # print the cumulative expected reward
-    plt.plot(time, np.cumsum(cum_actual))
-    plt.plot(time, np.cumsum(cum_opt))
-    plt.show()
+        # print the cumulative regret
+        plt.subplot(223)
+        plt.plot(time, np.cumsum(regret), label='TS_SW')
+        plt.legend(loc="lower right")
+        plt.xlabel('Time Horizon')
+        plt.ylabel('regret')
+        # plt.savefig(f'results/point5 graph{g+1}')
+        plt.show()
+    # plt.figure(1)
+    # # print the cumulatives instantaneous rewards
+    # plt.subplot(221)
+    # plt.plot(time, cum_actual, label='TS')
+    # plt.plot(time, cum_opt, '--', label='clairvoyant')
+    # plt.ylabel('cumulative instantaneous rewards')
+    # plt.xlabel('Time Horizon')
+    # plt.legend(loc="lower right")
 
-    # print the cumulative expected regret
-    plt.plot(time, np.cumsum(cum_regret))
-    plt.show()
+    # plt.subplot(222)
+    # # print the cumulative expected reward
+    # plt.plot(time, np.cumsum(cum_actual), label='TS')
+    # plt.plot(time, np.cumsum(cum_opt), '--', label='clairvoyant')
+    # plt.xlabel('Time Horizon')
+    # plt.ylabel('cumulative expected rewards')
+    # plt.legend(loc="lower right")
+
+    # plt.subplot(223)
+    # # print the cumulative expected regret
+    # plt.plot(time, np.cumsum(cum_regret), label='TS', )
+    # plt.legend(loc="lower right")
+    # plt.xlabel('Time Horizon')
+    # plt.ylabel('cumulative expected regret')
+    # plt.show()
 
 
-def point6(graphs, prices, conv_rates, n_phases, n_experiments, T):
-    window_size = int((np.sqrt(T)))
+
+def point6(graphs, prices, conv_rates, n_phases, k, budget, n_experiments, T):
+    window_size = 2 * int((np.sqrt(T)))
     # init revenue and n_customer for each graph, expeeriment and day
     revenue = np.zeros([len(graphs), n_experiments, T])
     n_customers = np.zeros([len(graphs), n_experiments, T])
-    seller = [g.random_seeds(1) for g in graphs]
+    graphs_seeds = []
 
-    for exper in range(n_experiments):
+    for g in range(len(graphs)):
+        seeds, _ = greedy_algorithm(graphs[g], budget, k)
+        graphs_seeds.append(seeds)
+
+    for exper in tqdm(range(n_experiments)):
+        # print(f'experiment : {exper + 1}/{n_experiments}')
         for g in range(len(graphs)):
+            print(f'graph : {g + 1}/{len(graphs)}')
             learner = SWTS_Learner(len(prices), prices, window_size, T)
             env = Non_Stationary_Environment(len(prices), conv_rates[g], T)
 
             for t in range(T):
                 r = 0  # actual revenue of day t
                 # every day the sellers make social influence
-                potential_customers = graphs[g].social_influence(seller[g])
 
-                n_customers[g][exper][t] = len(potential_customers)
+                potential_customers = graphs[g].social_influence(graphs_seeds[g])
 
-                for _ in potential_customers:
+                n_customers[g][exper][t] = potential_customers
+
+                for _ in range(potential_customers):
                     pulled_arm = learner.pull_arm()
                     reward = env.round(pulled_arm, t)
                     learner.update(pulled_arm, reward, t)
@@ -367,7 +405,8 @@ def point6(graphs, prices, conv_rates, n_phases, n_experiments, T):
             phase_size = T / n_phases
             curr_phase = int(day / phase_size)
             # compute the clairvoyant revenue
-            opt = np.max(true_expect_revenue[g][curr_phase]) * avg_customers[g][day]
+            avg_customers_per_graph = np.mean(avg_customers, 1)
+            opt = np.max(true_expect_revenue[g][curr_phase]) * avg_customers_per_graph[g]
             # revenue of the algorithm
             actual = avg_revenue[g][day]
             # compute the instantaneous regret
@@ -375,46 +414,73 @@ def point6(graphs, prices, conv_rates, n_phases, n_experiments, T):
             opt_revenue.append(opt)
             actual_revenue.append(actual)
 
-        # print the instantaneous rewards
-        plt.plot(time, opt_revenue)
-        plt.plot(time, actual_revenue)
-        plt.show()
+        # print the instantaneous revenue
+        plt.figure(1)
+        plt.subplot(221)
+        plt.plot(time, actual_revenue, label='TS_SW')
+        plt.plot(time, opt_revenue, '--', label='clairvoyant')
+        plt.ylabel('revenue')
+        plt.xlabel('Time Horizon')
+        plt.legend(loc="lower right")
 
-        # print the expected reward
-        plt.plot(time, np.cumsum(actual_revenue))
-        plt.plot(time, np.cumsum(opt_revenue))
-        plt.show()
+        # print the cumulative revenue
+        plt.subplot(222)
+        plt.plot(time, np.cumsum(actual_revenue), label='TS_SW')
+        plt.plot(time, np.cumsum(opt_revenue), '--', label='clairvoyant')
+        plt.xlabel('Time Horizon')
+        plt.ylabel('revenues')
+        plt.legend(loc="lower right")
 
-        # print the expected regret
-        plt.plot(time, np.cumsum(regret))
+        # print the cumulative regret
+        plt.subplot(223)
+        plt.plot(time, np.cumsum(regret), label='TS_SW')
+        plt.legend(loc="lower right")
+        plt.xlabel('Time Horizon')
+        plt.ylabel('regret')
+        # plt.savefig(f'results/point6 graph{g+1}')
         plt.show()
         cum_regret += regret
         cum_actual += actual_revenue
         cum_opt += opt_revenue
 
-    # print the cumulatives instantaneous rewards
-    plt.plot(time, cum_opt)
-    plt.plot(time, cum_actual)
-    plt.show()
+    # plt.figure(2)
+    # # print the cumulatives instantaneous rewards
+    # plt.subplot(221)
+    # plt.plot(time, cum_actual, label='TS')
+    # plt.plot(time, cum_opt, '--', label='clairvoyant')
+    # plt.ylabel('cumulative instantaneous rewards')
+    # plt.xlabel('Time Horizon')
+    # plt.legend(loc="lower right")
 
-    # print the cumulative expected reward
-    plt.plot(time, np.cumsum(cum_actual))
-    plt.plot(time, np.cumsum(cum_opt))
-    plt.show()
+    # plt.subplot(222)
+    # # print the cumulative expected reward
+    # plt.plot(time, np.cumsum(cum_actual), label='TS')
+    # plt.plot(time, np.cumsum(cum_opt), '--', label='clairvoyant')
+    # plt.xlabel('Time Horizon')
+    # plt.ylabel('cumulative expected rewards')
+    # plt.legend(loc="lower right")
 
-    # print the cumulative expected regret
-    plt.plot(time, np.cumsum(cum_regret))
-    plt.show()
+    # plt.subplot(223)
+    # # print the cumulative expected regret
+    # plt.plot(time, np.cumsum(cum_regret), label='TS')
+    # plt.legend(loc="lower right")
+    # plt.xlabel('Time Horizon')
+    # plt.ylabel('cumulative expected regret')
+    # plt.show()
 
 
-def point7(graphs, prices, conv_rates, n_phases, budget, simulations):
-    n_experiments = 3
-    T = 1000
-    window_size = int((np.sqrt(T)))
+def point7(graphs, prices, conv_rates, n_phases, k, budget, n_experiments, T, simulations):
+    window_size = 2 * int((np.sqrt(T)))
     # init revenue and n_customer for each graph, expeeriment and day
     revenue = np.zeros([len(graphs), n_experiments, T])
     n_customers = np.zeros([len(graphs), n_experiments, T])
-    seller = [g.random_seeds(1) for g in graphs]
+
+    phases_lens = np.zeros([len(graphs), n_phases], dtype=int)
+
+    graphs_seeds = []
+    for g in range(len(graphs)):
+        seeds, _ = greedy_algorithm(graphs[g], budget, k)
+        graphs_seeds.append(seeds)
 
     for exper in range(n_experiments):
         for g in range(len(graphs)):
@@ -423,14 +489,19 @@ def point7(graphs, prices, conv_rates, n_phases, budget, simulations):
             # init the graph for point 4
             graph = Graph(copy=graphs[g])
             graph.adj_matrix = np.where(graphs[g].adj_matrix > 0, 0.5, 0)
-            print(f'Experiment : {exper + 1}/{n_experiments} Graph : {g + 1}/{len(graphs)}')
-            for t in range(T):
-                r = 0  # actual revenue of day t
+
+            print(f'Experiment : {exper+1}/{n_experiments} Graph : {g+1}/{len(graphs)}')
+            for t in tqdm(range(T)):
+                r = 0
                 # every day the sellers make social influence
                 epsilon = (1 - t / T) ** 2
                 seeds = choose_seeds(graph, budget, epsilon, simulations)
-                graph.influence_episode(seeds, graphs[g].adj_matrix)
+                potential_customers = graph.influence_episode(seeds, graphs[g].adj_matrix)
+                best_potential_customers = graphs[g].social_influence(graphs_seeds[g])
                 indeces = np.where(graph.adj_matrix > 0)
+
+                curr_phase = int(t / (T / n_phases))
+                phases_lens[g][curr_phase] += potential_customers
 
                 # Retrieve for each of them alpha and beta, compute the deviation and update probability
                 for i in range(len(indeces[0])):
@@ -441,15 +512,14 @@ def point7(graphs, prices, conv_rates, n_phases, budget, simulations):
                     mu = alpha / (alpha + beta)
                     graph.adj_matrix[x][y] = mu
 
-                potential_customers = graph.social_influence(seller[g])
+                n_customers[g][exper][t] = best_potential_customers
 
-                n_customers[g][exper][t] = len(potential_customers)
-
-                for _ in potential_customers:
+                for _ in range(potential_customers):
                     pulled_arm = learner.pull_arm()
                     reward = env.round(pulled_arm, t)
                     learner.update(pulled_arm, reward, t)
                     r += prices[pulled_arm] * reward
+
                 # revenue of the day
                 revenue[g, exper, t] = r
 
@@ -457,67 +527,56 @@ def point7(graphs, prices, conv_rates, n_phases, budget, simulations):
     avg_revenue = np.average(revenue, 1)
     avg_customers = np.average(n_customers, 1)
 
-    # compute the cumulative true expected revenue
+    # compute the true expected revenue
     true_expect_revenue = np.zeros([len(graphs), n_phases, len(prices)])
     for g, conv_rate in enumerate(conv_rates):
         for phase in range(n_phases):
             true_expect_revenue[g][phase] = conv_rate[phase] * prices
 
     time = range(T)
-    cum_opt = np.zeros(T)
-    cum_actual = np.zeros(T)
-    cum_regret = np.zeros(T)
+
     for g in range(len(graphs)):
         opt_revenue = []
         actual_revenue = []
         regret = []
+        avg_customers_per_graph = np.mean(avg_customers, 1)
         for day in range(T):
             phase_size = T / n_phases
             curr_phase = int(day / phase_size)
             # compute the clairvoyant revenue
-            opt = np.max(true_expect_revenue[g][curr_phase]) * avg_customers[g][day]
+            avg_customers_per_graph = np.mean(avg_customers, 1)
+            opt = np.max(true_expect_revenue[g][curr_phase]) * avg_customers_per_graph[g]
             # revenue of the algorithm
             actual = avg_revenue[g][day]
             # compute the instantaneous regret
             regret.append(opt - actual)
             opt_revenue.append(opt)
             actual_revenue.append(actual)
-        # print the instantaneous rewards
-        plt.plot(time, opt_revenue)
-        plt.plot(time, actual_revenue)
-        plt.title(f'Instantaneous reward of graph {g}')
+        # print the instantaneous revenue
+        plt.figure(1)
+        plt.subplot(221)
+        plt.plot(time, actual_revenue, label='TS_SW')
+        plt.plot(time, opt_revenue, '--', label='clairvoyant')
+        plt.ylabel('revenue')
+        plt.xlabel('Time Horizon')
+        plt.legend(loc="lower right")
+
+        # print the cumulative revenue
+        plt.subplot(222)
+        plt.plot(time, np.cumsum(actual_revenue), label='TS_SW')
+        plt.plot(time, np.cumsum(opt_revenue), '--', label='clairvoyant')
+        plt.xlabel('Time Horizon')
+        plt.ylabel('revenue')
+        plt.legend(loc="lower right")
+
+        # print the cumulative regret
+        plt.subplot(223)
+        plt.plot(time, np.cumsum(regret), label='TS_SW')
+        plt.legend(loc="lower right")
+        plt.xlabel('Time Horizon')
+        plt.ylabel('regret')
+        # plt.savefig(f'results/point7 graph{g+1}')
         plt.show()
-
-        # print the expected reward
-        plt.plot(time, np.cumsum(actual_revenue))
-        plt.plot(time, np.cumsum(opt_revenue))
-        plt.title(f'Expected reward of graph {g}')
-        plt.show()
-
-        # print the expected regret
-        plt.plot(time, np.cumsum(regret))
-        plt.title(f'Expected regret of graph {g}')
-        plt.show()
-        cum_regret += regret
-        cum_actual += actual_revenue
-        cum_opt += opt_revenue
-
-    # # print the cumulatives instantaneous rewards
-    # plt.plot(time, cum_opt)
-    # plt.plot(time, cum_actual)
-    # plt.title(f'Cumulative instantaneous reward')
-    # plt.show()
-
-    # # print the cumulative expected reward
-    # plt.plot(time, np.cumsum(cum_actual))
-    # plt.plot(time, np.cumsum(cum_opt))
-    # plt.title(f'Cumulative expected reward')
-    # plt.show()
-
-    # # print the cumulative expected regret
-    # plt.plot(time, np.cumsum(cum_regret))
-    # plt.title(f'Cumulative expected regret reward')
-    # plt.show()
 
 
 points = [1, 2, 3, 4, 5, 6, 7]
@@ -553,41 +612,42 @@ for point in points:
     if point is 5:
         # graphs = [Graph(300, 0.08), Graph(250, 0.08), Graph(350, 0.07)]
         graphs = [Graph(100, 0.05), Graph(125, 0.05), Graph(150, 0.05)]
-        num_experiment = 50
-        time_horizon = 50
-
+        budget = 3
+        k = 100  # number of montecarlo iterations
+        n_experiments = 200
+        time_horizon = 70
         prices = [500, 690, 750, 850]
-        # each social network has its conv_rate
-        conv_rates = [generate_conversion_rate(prices) for g in graphs]
+        conv_rates = [generate_conversion_rate(prices) for g in graphs]   # each social network has its conv_rate
 
-        point5(graphs, prices, conv_rates, num_experiment, time_horizon)
+        point5(graphs, prices, conv_rates, k, budget, n_experiments, time_horizon)
 
     # -----------------------------------------------------------------------------
     if point is 6:
         # graphs = [Graph(300, 0.08), Graph(250, 0.08), Graph(350, 0.07)]
         graphs = [Graph(100, 0.05), Graph(125, 0.05), Graph(150, 0.05)]
-        num_experiments = 40
-        time_horizon = 50
+        budget = 3
+        k = 100  # number of montecarlo iterations
+        n_experiments = 100
+        time_horizon = 70
         n_phases = 3
-
         prices = [500, 690, 750, 850]
         # each social network has its conv_rate for each phase
         conv_rates = [[generate_conversion_rate(prices) for phase in range(n_phases)] for g in graphs]
         conv_rates = np.array(conv_rates)
-
-        point6(graphs, prices, conv_rates, n_phases, num_experiments, time_horizon)
+        point6(graphs, prices, conv_rates, n_phases, k, budget, n_experiments, time_horizon)
 
     # -----------------------------------------------------------------------------
     if point is 7:
         # graphs = [Graph(50, 0.08), Graph(50, 0.08), Graph(30, 0.07)]
-        graphs = [Graph(100, 0.05), Graph(125, 0.05), Graph(150, 0.05)]
+        graphs = [Graph(40, 0.3), Graph(40, 0.3), Graph(40, 0.3)]
         budget = 3
+        k = 80
         simulations = 5
         n_phases = 3
-
+        time_horizon = 70
+        n_experiments = 20
         prices = [500, 690, 750, 850]
         # each social network has its conv_rate for each phase
         conv_rates = [[generate_conversion_rate(prices) for phase in range(n_phases)] for g in graphs]
         conv_rates = np.array(conv_rates)
-
-        point7(graphs, prices, conv_rates, n_phases, budget, simulations)
+        point7(graphs, prices, conv_rates, n_phases, k, budget, n_experiments, time_horizon, simulations)

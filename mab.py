@@ -8,9 +8,11 @@ class Learner():
         self.t = 0
         self.rewards = []
         self.rewards_per_arm = [[] for i in range(n_arms)]
+        self.pulled_arms = []
 
     def update_observation(self, pulled_arm, reward):
         self.rewards_per_arm[pulled_arm].append(reward)
+        self.pulled_arms.append(pulled_arm)
         self.rewards.append(reward)
 
 
@@ -34,7 +36,6 @@ class SWTS_Learner(TS_Learner):
     def __init__(self, n_arms, arms, window_size, horizon):
         super().__init__(n_arms, arms)
         self.window_size = window_size
-        self.pulled_arms = np.array([])
         self.day = 0
         self.pulled_arms_per_day = np.zeros([horizon, n_arms])
 
