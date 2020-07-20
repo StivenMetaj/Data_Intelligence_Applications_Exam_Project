@@ -164,7 +164,7 @@ class Graph(object):
 
         nodes_activ_prob = nodes_activ_prob / max_repetition
 
-        return np.mean(nodes_activ_prob)
+        return np.mean(nodes_activ_prob), np.std(nodes_activ_prob)
 
     def influence_episode(self, seeds, truth):
         binomial_matrix = np.zeros([self.n_nodes, self.n_nodes], dtype=np.float)

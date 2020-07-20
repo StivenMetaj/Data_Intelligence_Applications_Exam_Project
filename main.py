@@ -17,29 +17,33 @@ import tqdm
 def greedy_algorithm(graph, budget, k, verbose=False):
     seeds = []
     spreads = []
+    stds = []
     best_node = None
     nodes = graph.nodes.copy()
 
     # In a cumulative way I compute the montecarlo sampling for each possibile new seed to see which one will be added
     for _ in range(budget):
         best_spread = 0
+        best_std = 0
 
         # For all the nodes which are not seed
         for node in nodes:
-            spread = graph.monte_carlo_sampling(seeds + [node], k)
+            spread, std = graph.monte_carlo_sampling(seeds + [node], k)
 
             if spread > best_spread:
                 best_spread = spread
+                best_std = std
                 best_node = node
 
         spreads.append(best_spread)
         seeds.append(best_node)
+        stds.append(best_std)
 
         # I remove it from nodes in order to not evaluate it again in the future
         if nodes:
             nodes.remove(best_node)
 
-    return seeds, spreads[-1]
+    return seeds, spreads[-1], stds[-1]
 
 
 # As before but we have multiple graphs and we decide the best seeds for each graph (they are correlated!)
@@ -79,34 +83,53 @@ def approximation_error(graph, budget, scale_factor, num_experiments):
     plot_dict_2 = {}
     plot_dict_3 = {}
     plot_dict_4 = {}
-    real_spread = greedy_algorithm(graph, budget, num_experiments)[1]
+    #plot_dict_5 = {}
+    constant = math.log(budget, 10) * math.log((1/0.3), 10)
+    _, real_spread, real_std = greedy_algorithm(graph, budget, 500)
     k = 1
-    for _ in range(0, num_experiments-1):
+    for _ in range(0, num_experiments):
         print("Iteration: " + str(_ + 1) + "/" +
               str(num_experiments) + " | K = " + str(k), end="")
 
-        seeds, spread = greedy_algorithm(graph, budget, k)
+        seeds, spread, std = greedy_algorithm(graph, budget, k)
 
         plot_dict[k] = spread
         plot_dict_2[k] = real_spread
+        plot_dict_3[k] = spread + std
+        plot_dict_4[k] = spread - std
+
+        #eps = math.sqrt((1/k) * constant)
+        #plot_dict_5[k] = eps
+
         k = math.ceil(k * scale_factor)
         print("", end="\r")
 
     print("", end="")
-    plot_dict[k] = real_spread
-    plot_dict_2[k] = real_spread
 
     lists = sorted(plot_dict.items())
     lists_2 = sorted(plot_dict_2.items())
+    lists_3 = sorted(plot_dict_3.items())
+    lists_4 = sorted(plot_dict_4.items())
+    #lists_5 = sorted(plot_dict_5.items())
     x, y = zip(*lists)
     x_2, y_2 = zip(*lists_2)
+    x_3, y_3 = zip(*lists_3)
+    x_4, y_4 = zip(*lists_4)
+    #x_5, y_5 = zip(*lists_5)
 
     plt.plot(x, y, label='Approximated Spread', color='tab:blue', linestyle='-')
-    plt.plot(x_2, y_2, label='Real Spread', color='tab:orange', linestyle='--')
+    plt.plot(x_2, y_2, label='Spread after 500 repetitions', color='tab:orange', linestyle='--')
+    plt.plot(x_3, y_3, label='Standard Deviation', color='tab:pink', linewidth='0.4')
+    plt.plot(x_4, y_4, color='tab:pink', linewidth='0.4')
+    #plt.plot(x_5, y_5, label='Theoretic Bound', color='tab:red')
     plt.title("Graph " + str(graph.id) + ": Social Influence Maximization - Approximation Error")
     plt.ylabel("Activation Spread")
     plt.xlabel("Montecarlo Iterations")
+    plt.fill_between(x, y_3, y_4, color='tab:pink', alpha="0.15")
     plt.legend()
+    # a, b, c, d = plt.axis()
+    #
+    # plt.axis((a, b, c, plot_dict[1]*1.5))
 
     plt.show()
 
@@ -635,10 +658,10 @@ points = [2]
 
 for point in points:
     if point is 2:
-        graphs = [Graph(150, 0.1), Graph(175, 0.05), Graph(200, 0.04)]
+        graphs = [Graph(100, 0.1), Graph(150, 0.05), Graph(200, 0.04)]
         budget = 3
-        scale_factor = 1.1
-        num_experiments = 38
+        scale_factor = 1.15
+        num_experiments = 27
 
         point2(graphs, budget, scale_factor, num_experiments)
 
@@ -646,7 +669,7 @@ for point in points:
     if point is 3:
         graphs = [Graph(100, 0.05), Graph(110, 0.05), Graph(120, 0.05)]
         budget = 4
-        scale_factor = 1.1
+        scale_factor = 1.2
         num_experiments = 38
 
         point3(graphs, budget, scale_factor, num_experiments)
