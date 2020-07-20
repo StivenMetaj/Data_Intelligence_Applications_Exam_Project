@@ -50,7 +50,7 @@ class SWTS_Learner(TS_Learner):
             else:
                 start_index = day + 1 - self.window_size
 
-            n_samples = int(np.sum(self.pulled_arms_per_day[start_index:(day+1), arm]))
+            n_samples = int(np.sum(self.pulled_arms_per_day[start_index:(day + 1), arm]))
 
             if n_samples != 0:
                 cum_rew = np.sum(self.rewards_per_arm[arm][-n_samples:])

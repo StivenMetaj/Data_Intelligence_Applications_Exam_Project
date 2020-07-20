@@ -2,15 +2,15 @@ import copy
 import math
 import random
 
-import matplotlib.pyplot as plt
 import numpy as np
 from mab import (Environment, Non_Stationary_Environment, SWTS_Learner,
                  TS_Learner)
-# perchè pylab?
-from matplotlib.pylab import plt
+
+import matplotlib.pyplot as plt
 from network import Graph
-from scipy.stats import beta
-from tqdm import tqdm
+import tqdm
+
+#plt.style.use('seaborn-whitegrid')
 
 
 # The function returns the best possible seeds set given a certain graph
@@ -76,28 +76,44 @@ def cumulative_greedy_algorithm(graphs, budget, k):
 # K grows polynomially.
 def approximation_error(graph, budget, scale_factor, num_experiments):
     plot_dict = {}
+    plot_dict_2 = {}
+    real_spread = greedy_algorithm(graph, budget, num_experiments)[1]
     k = 1
-    for _ in range(0, num_experiments):
+    for _ in range(0, num_experiments-1):
         print("Iteration: " + str(_ + 1) + "/" +
               str(num_experiments) + " | K = " + str(k), end="")
 
         seeds, spread = greedy_algorithm(graph, budget, k)
 
         plot_dict[k] = spread
+        plot_dict_2[k] = real_spread
         k = math.ceil(k * scale_factor)
         print("", end="\r")
 
     print("", end="")
-    lists = sorted(plot_dict.items())
-    x, y = zip(*lists)
+    plot_dict[k] = real_spread
+    plot_dict_2[k] = real_spread
 
-    plt.plot(x, y)
+    lists = sorted(plot_dict.items())
+    lists_2 = sorted(plot_dict_2.items())
+    x, y = zip(*lists)
+    x_2, y_2 = zip(*lists_2)
+
+    plt.plot(x, y, label='Approximated Spread', color='tab:blue', linestyle='-')
+    plt.plot(x_2, y_2, label='Real Spread', color='tab:orange', linestyle='--')
+    plt.title("Graph " + str(graph.id) + ": Social Influence Maximization - Approximation Error")
+    plt.ylabel("Activation Spread")
+    plt.xlabel("Montecarlo Iterations")
+    plt.legend()
+
     plt.show()
 
 
 # The same function above but we have here multiple graphs and we call the cumulative algorithm
 def cumulative_approximation_error(graphs, budget, scale_factor, num_experiments):
     plot_dict = {}
+    plot_dict_2 = {}
+    real_spread = sum(cumulative_greedy_algorithm(graphs, budget, 500)[1].values())
     k = 1
     for _ in range(0, num_experiments):
         print("Iteration: " + str(_ + 1) + "/" +
@@ -107,14 +123,24 @@ def cumulative_approximation_error(graphs, budget, scale_factor, num_experiments
 
         # y axis of the plot shows the cumulative_spread (sum of spread of each single graph)
         plot_dict[k] = sum(spreads.values())
+        plot_dict_2[k] = real_spread
         k = math.ceil(k * scale_factor)
         print("", end="\r")
 
     print("", end="")
-    lists = sorted(plot_dict.items())
-    x, y = zip(*lists)
 
-    plt.plot(x, y)
+    lists = sorted(plot_dict.items())
+    lists_2 = sorted(plot_dict_2.items())
+    x, y = zip(*lists)
+    x_2, y_2 = zip(*lists_2)
+
+    plt.plot(x, y, label='Approximated Spread', color='tab:blue', linestyle='-')
+    plt.plot(x_2, y_2, label='Spread after 500 repetitions', color='tab:orange', linestyle='--')
+    plt.title("Cumulative Social Influence Maximization - Approximation Error")
+    plt.ylabel("Activation Spread")
+    plt.xlabel("Montecarlo Iterations")
+    plt.legend()
+
     plt.show()
 
 
@@ -187,7 +213,11 @@ def point4(true_graph: Graph, budget, repetitions, simulations):
     graph.adj_matrix = np.where(true_graph.adj_matrix > 0, 0.5, 0)
 
     x_list = []
+    x2_list = []
     y_list = []
+    y2_list = []
+
+    total_error = 0.0
 
     # Main procedure
     for r in range(repetitions):
@@ -206,13 +236,22 @@ def point4(true_graph: Graph, budget, repetitions, simulations):
             graph.adj_matrix[x][y] = mu
 
         error = get_total_error(graph, true_graph)
+        total_error += error
 
         x_list.append(r)
-        y_list.append(error)
+        x2_list.append(r)
+        y_list.append(total_error)
+        y2_list.append(0)
         print("", end="\r")
     print("", end="")
 
-    plt.plot(x_list, y_list)
+    plt.plot(x_list, y_list, label='Bandit Approximation', color='tab:blue', linestyle='-')
+    plt.plot(x2_list, y2_list, label='Ideal 0 Value', color='tab:orange', linestyle='--')
+    plt.title("Unknown Activation Probabilities - Approximation Error")
+    plt.ylabel("Approximation Error")
+    plt.xlabel("Time")
+    plt.legend()
+
     plt.show()
 
 
@@ -579,32 +618,32 @@ def point7(graphs, prices, conv_rates, n_phases, k, budget, n_experiments, T, si
         plt.show()
 
 
-points = [1, 2, 3, 4, 5, 6, 7]
+points = [2]
 
 for point in points:
     if point is 2:
-        graphs = [Graph(100, 0.05), Graph(125, 0.05), Graph(150, 0.05)]
+        graphs = [Graph(150, 0.1), Graph(175, 0.05), Graph(200, 0.04)]
         budget = 3
-        scale_factor = 1.2
-        num_experiments = 15
+        scale_factor = 1.1
+        num_experiments = 38
 
         point2(graphs, budget, scale_factor, num_experiments)
 
     # -----------------------------------------------------------------------------
     if point is 3:
-        graphs = [Graph(100, 0.05), Graph(125, 0.05), Graph(150, 0.05)]
-        budget = 3
-        scale_factor = 1.2
-        num_experiments = 15
+        graphs = [Graph(100, 0.05), Graph(110, 0.05), Graph(120, 0.05)]
+        budget = 4
+        scale_factor = 1.1
+        num_experiments = 38
 
         point3(graphs, budget, scale_factor, num_experiments)
 
     # -----------------------------------------------------------------------------
     if point is 4:
-        graph = Graph(100, 0.05)
-        budget = 3
-        repetitions = 100
-        num_experiments = 1
+        graph = Graph(500, 0.005)
+        budget = 5
+        repetitions = 1000
+        num_experiments = 10
 
         point4(graph, budget, repetitions, num_experiments)
 

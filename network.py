@@ -1,6 +1,7 @@
 import random
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 np.random.seed(123456)
 
