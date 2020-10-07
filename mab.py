@@ -2,6 +2,7 @@ import numpy as np
 
 
 class Learner():
+    # Generale Learner Class
     def __init__(self, n_arms, arms):
         self.n_arms = n_arms
         self.arms = arms
@@ -17,6 +18,7 @@ class Learner():
 
 
 class TS_Learner(Learner):
+    # Specialized Thompson Sampling Learner
     def __init__(self, n_arms, arms):
         super().__init__(n_arms=n_arms, arms=arms)
         self.beta_param = np.ones((n_arms, 2))
@@ -72,7 +74,6 @@ class Environment():
 
 
 class Non_Stationary_Environment(Environment):
-
     def __init__(self, n_arms, probabilities, horizon):
         super().__init__(n_arms, probabilities)
         self.t = 0

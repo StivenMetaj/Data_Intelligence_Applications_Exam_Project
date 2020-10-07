@@ -1,7 +1,5 @@
 import random
-
 import numpy as np
-import matplotlib.pyplot as plt
 
 np.random.seed(123456)
 
@@ -52,6 +50,7 @@ class Beta(object):
 
 
 class Graph(object):
+    # Class containing the main object used in the project
     id = 1  # graph id
 
     def __init__(self, n_nodes=1, connectivity=0.5, copy=None):
@@ -76,8 +75,10 @@ class Graph(object):
             for j in range(self.n_nodes):
                 if np.random.rand() <= self.connectivity and i != j:
                     self.nodes[i].add_neighborg(self.nodes[j])
+
                     # Not uniform(0, 1) because we prefer low probabilities
                     features_value = self.evaluate_influence(self.nodes[i], self.nodes[j])
+
                     # features_value / how_much_low to normalize with respect to the uniform
                     how_much_low = 20
                     self.adj_matrix[i][j] = np.random.uniform(0, 1 / how_much_low) + (features_value / how_much_low)
@@ -164,9 +165,9 @@ class Graph(object):
 
         nodes_activ_prob = nodes_activ_prob / max_repetition
 
-        return np.mean(nodes_activ_prob), np.std(nodes_activ_prob)
+        return np.mean(nodes_activ_prob)
 
-    def influence_episode(self, seeds, truth):
+    def influence_episode(self, seeds, truth, sampling=True):
         binomial_matrix = np.zeros([self.n_nodes, self.n_nodes], dtype=np.float)
         indeces = np.where(self.adj_matrix > 0)
 
@@ -189,10 +190,12 @@ class Graph(object):
                 for neighborg in active.neighbors:
                     if live_edges[active.id][neighborg.id] and not (
                             neighborg in new_activated or neighborg in activated):
-                        self.beta_parameters_matrix[active.id][neighborg.id].a += 1
+                        if sampling:
+                            self.beta_parameters_matrix[active.id][neighborg.id].a += 1
                         new_activated.append(neighborg)
                     else:
-                        self.beta_parameters_matrix[active.id][neighborg.id].b += 1
+                        if sampling:
+                            self.beta_parameters_matrix[active.id][neighborg.id].b += 1
 
         return len(activated) - len(seeds)
 
