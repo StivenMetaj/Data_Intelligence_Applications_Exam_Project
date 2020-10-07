@@ -1,6 +1,6 @@
-# Data Intelligence Applications Exam Project - Social & Pricing
+# Data Intelligence Applications Exam Project - Social Influence & Pricing
 
-In this repository you can find our project about Social and Pricing for the "Data Intelligence Applications" exam. 
+In this repository you can find our project about Social Influence and Pricing for the "Data Intelligence Applications" exam. 
 
 ***
 
